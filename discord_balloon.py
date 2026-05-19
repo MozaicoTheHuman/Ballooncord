@@ -1420,6 +1420,7 @@ def _style_queue_add(title: str, body: str, url: "str | None",
 def show_balloon(title: str, body: str, url: "str | None" = None,
                  is_system: bool = False, sound_key: str = "NewMessage",
                  channel_id: "str | None" = None) -> None:
+    global _has_unread
     if is_system:
                                                                        
                                                                        
@@ -1428,13 +1429,11 @@ def show_balloon(title: str, body: str, url: "str | None" = None,
 
     if channel_id and _discord_has_focus():
         print(f"[notif] Discord has focus — suppressing balloon for channel {channel_id}")
-        global _has_unread
         _has_unread = True
         _unread_channels.add(channel_id)
         _update_tray_icon_for_state()
         return
 
-    global _has_unread
     _has_unread = True
     if channel_id:
         _unread_channels.add(channel_id)
