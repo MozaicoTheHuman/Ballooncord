@@ -1,5 +1,3 @@
-                      
-
 from __future__ import annotations                                          
 
 import asyncio
@@ -144,6 +142,24 @@ _state_icon_cache: dict[str, int] = {}
 _vc_member_ids: set[str] = set() 
 _vc_join_time:  float = 0.0  
 _VC_JOIN_GRACE: float = 3.0  
+
+_focused_channel_id: str | None = None
+_focus_poll_stop: threading.Event = threading.Event()
+
+def _focus_poll_thread() -> None:
+    global _focused_channel_id
+    while not _focus_poll_stop.is_set():
+        if not _discord_has_focus():
+            if _focused_channel_id is not None:
+                _focused_channel_id = None
+        _focus_poll_stop.wait(timeout=0.5)
+
+def _should_suppress_channel(channel_id: str | None) -> bool:
+    if not channel_id:
+        return False
+    if not _discord_has_focus():
+        return False
+    return channel_id == _focused_channel_id
 
 def _varint_encode(value: int) -> bytes:
 
@@ -1419,20 +1435,22 @@ def _style_queue_add(title: str, body: str, url: "str | None",
 
 def show_balloon(title: str, body: str, url: "str | None" = None,
                  is_system: bool = False, sound_key: str = "NewMessage",
-                 channel_id: "str | None" = None) -> None:
+                 channel_id: "str | None" = None) -> bool:
     global _has_unread
     if is_system:
-                                                                       
-                                                                       
         _raw_show_balloon(title, body, url, suppress_sound=True)
-        return
+        return False
+
+    if _should_suppress_channel(channel_id):
+        print(f"[notif] Suppressed (viewing channel {channel_id}) — marking unread silently")
+        _unread_channels.discard(channel_id)
+        if not _unread_channels:
+            _has_unread = False
+        _update_tray_icon_for_state()
+        return True
 
     if channel_id and _discord_has_focus():
-        print(f"[notif] Discord has focus — suppressing balloon for channel {channel_id}")
-        _has_unread = True
-        _unread_channels.add(channel_id)
-        _update_tray_icon_for_state()
-        return
+        print(f"[notif] Discord has focus (different channel) — showing balloon for {channel_id}")
 
     _has_unread = True
     if channel_id:
@@ -1445,6 +1463,7 @@ def show_balloon(title: str, body: str, url: "str | None" = None,
         _style_queue_add(title, body, url, sound_key=sound_key)
     else:
         _style_instant(title, body, url, sound_key=sound_key)
+    return False
 
 def _open_balloon_url() -> None:
     global _pending_update_info
@@ -2445,9 +2464,12 @@ async def run_gateway(token: str) -> None:
                             continue
 
                         if t == "MESSAGE_ACK":
+                            global _focused_channel_id
                             ack_ch = d.get("channel_id")
                             if ack_ch:
                                 ack_times[ack_ch] = time.time()
+                                if _discord_has_focus():
+                                    _focused_channel_id = ack_ch
                                 if ack_ch in _unread_channels:
                                     _unread_channels.discard(ack_ch)
                                     if not _unread_channels:
@@ -2456,7 +2478,7 @@ async def run_gateway(token: str) -> None:
                                     print(f"[gateway] ACK channel {ack_ch} — "
                                           f"{'all read' if not _unread_channels else f'{len(_unread_channels)} remaining'}")
                                 else:
-                                    print(f"[gateway] ACK channel {ack_ch} (not tracked)")
+                                    print(f"[gateway] ACK channel {ack_ch} (focused, not tracked)")
                             continue
 
                         if t == "CHANNEL_UNREAD_UPDATE":
@@ -2607,12 +2629,13 @@ async def run_gateway(token: str) -> None:
 
                         if load_config().get("notif_style", "instant") != "queue":
                             if not load_config().get("balloon_sound_mode", False):
-                                author_id = author.get("id", "")
-                                if not _play_per_user_sound(author_id, "message"):
-                                    if _was_mentioned(d, my_user_id):
-                                        _play_notification_sound("NewMention")
-                                    else:
-                                        _play_notification_sound("NewMessage")
+                                if not _should_suppress_channel(channel_id):
+                                    author_id = author.get("id", "")
+                                    if not _play_per_user_sound(author_id, "message"):
+                                        if _was_mentioned(d, my_user_id):
+                                            _play_notification_sound("NewMention")
+                                        else:
+                                            _play_notification_sound("NewMessage")
 
         except Exception as e:
             print(f"[gateway] Error: {e}")
@@ -3652,11 +3675,13 @@ def _launch_updater_download(version: str, url: str) -> None:
                     creationflags=subprocess.CREATE_NO_WINDOW,
                     close_fds=True,
                 )
-                print(f"[updater] Launched {os.path.basename(exe)} --download {version}")
+                print(f"[updater] Launched {os.path.basename(exe)} --download {version} — exiting")
             except Exception as e:
                 print(f"[updater] Failed to launch updater for download: {e}")
-            return
-              
+                return
+            time.sleep(0.5)
+            os._exit(0)
+
     py_path = os.path.join(base, "updater.py")
     if os.path.isfile(py_path):
         try:
@@ -3665,9 +3690,12 @@ def _launch_updater_download(version: str, url: str) -> None:
                 creationflags=subprocess.CREATE_NO_WINDOW,
                 close_fds=True,
             )
-            print(f"[updater] Launched updater.py --download {version} (dev mode)")
+            print(f"[updater] Launched updater.py --download {version} (dev mode) — exiting")
         except Exception as e:
             print(f"[updater] Failed to launch updater.py: {e}")
+            return
+        time.sleep(0.5)
+        os._exit(0)
 
 def _launch_updater() -> None:
 

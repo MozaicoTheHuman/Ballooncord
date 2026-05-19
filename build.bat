@@ -1,7 +1,7 @@
 @echo off
 title mish
 
-pyinstaller --onefile --windowed discord_balloon.py
+pyinstaller --onefile --windowed Ballooncord.py
 echo.
 echo =========================
 echo ta listo mi loco
