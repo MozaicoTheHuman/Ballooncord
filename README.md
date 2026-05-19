@@ -18,5 +18,5 @@ It also includes:
 - On exit, asks whether to close Discord too *(with a "Don't ask again" option)*
 - Compatible with both Discord and [Discord Messenger](https://github.com/DiscordMessenger/dm)
 - Built-in event log and crash log
-
+- Auto-Updater (experimental)
 ---
