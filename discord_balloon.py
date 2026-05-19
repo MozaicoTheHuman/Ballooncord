@@ -1083,6 +1083,34 @@ def _find_discord_hwnd() -> ctypes.wintypes.HWND | None:
     user32.EnumWindows(EnumWindowsProc(callback), 0)
     return result[0] if result else None
 
+def _discord_has_focus() -> bool:
+    fg_hwnd = user32.GetForegroundWindow()
+    if not fg_hwnd:
+        return False
+    pid_buf = ctypes.wintypes.DWORD(0)
+    user32.GetWindowThreadProcessId(fg_hwnd, ctypes.byref(pid_buf))
+    fg_pid = pid_buf.value
+    client = load_config().get("client_app", "discord")
+    if client == "dm":
+        dm_hwnd = _find_dm_hwnd()
+        return bool(dm_hwnd and fg_hwnd == dm_hwnd)
+    if client == "canary":
+        canary_pids: set[int] = set()
+        snap = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
+        if snap != ctypes.wintypes.HANDLE(-1).value:
+            try:
+                entry = PROCESSENTRY32W()
+                entry.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+                ok = kernel32.Process32FirstW(snap, ctypes.byref(entry))
+                while ok:
+                    if entry.szExeFile.lower() == "discordcanary.exe":
+                        canary_pids.add(entry.th32ProcessID)
+                    ok = kernel32.Process32NextW(snap, ctypes.byref(entry))
+            finally:
+                kernel32.CloseHandle(snap)
+        return fg_pid in canary_pids
+    return fg_pid in _get_discord_pids()
+
 def _launch_discord() -> None:
     local = os.environ.get("LOCALAPPDATA", "")
     for folder, exename in [
@@ -1397,6 +1425,15 @@ def show_balloon(title: str, body: str, url: "str | None" = None,
                                                                        
         _raw_show_balloon(title, body, url, suppress_sound=True)
         return
+
+    if channel_id and _discord_has_focus():
+        print(f"[notif] Discord has focus — suppressing balloon for channel {channel_id}")
+        global _has_unread
+        _has_unread = True
+        _unread_channels.add(channel_id)
+        _update_tray_icon_for_state()
+        return
+
     global _has_unread
     _has_unread = True
     if channel_id:
@@ -2217,7 +2254,11 @@ async def run_gateway(token: str) -> None:
                                 u    = d.get("user", {})
                                 who  = u.get("global_name") or u.get("username", "Someone")
                                 print(f"[msg] Friend request from {who}")
-                                show_balloon(_t("balloon_friend_req"), _t("balloon_friend_body", who=who))
+                                show_balloon(_t("balloon_friend_req"), _t("balloon_friend_body", who=who),
+                                             is_system=True)
+                            continue
+
+                        if t == "RELATIONSHIP_REMOVE":
                             continue
 
                         if t == "VOICE_STATE_UPDATE":
@@ -2383,6 +2424,16 @@ async def run_gateway(token: str) -> None:
                                 _stop_incoming_call_sound()
                             continue
 
+                        if t == "CHANNEL_DELETE":
+                            del_ch = d.get("id")
+                            if del_ch and del_ch in _unread_channels:
+                                _unread_channels.discard(del_ch)
+                                if not _unread_channels:
+                                    _has_unread = False
+                                _update_tray_icon_for_state()
+                                print(f"[gateway] CHANNEL_DELETE cleaned unread for {del_ch}")
+                            continue
+
                         if t == "USER_GUILD_SETTINGS_UPDATE":
                             upd_g, upd_c = _parse_muted([d])
                             gid = d.get("guild_id")
@@ -2436,6 +2487,10 @@ async def run_gateway(token: str) -> None:
                             continue
 
                         if t != "MESSAGE_CREATE":
+                            continue
+
+                        if not my_user_id:
+                            print("[msg] Dropping MESSAGE_CREATE — my_user_id not yet known (reconnecting)")
                             continue
 
                         author = d.get("author", {})
