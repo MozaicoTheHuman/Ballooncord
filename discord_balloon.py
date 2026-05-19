@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
-"""
-puto el q lea
-"""
+                      
+
+from __future__ import annotations                                          
 
 import asyncio
 import ctypes
@@ -43,12 +42,10 @@ shell32  = ctypes.windll.shell32
 user32   = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
 
-
 def _hide_console() -> None:
     hwnd = kernel32.GetConsoleWindow()
     if hwnd:
         user32.ShowWindow(hwnd, 0)
-
 
 _hide_console()
 
@@ -93,12 +90,9 @@ NIN_BALLOONTIMEOUT   = 0x0404
 
 WM_RBUTTONUP     = 0x0205
 WM_LBUTTONDBLCLK = 0x0203
-WM_LBUTTONUP     = 0x0202
-WM_COMMAND       = 0x0111
 WM_CONTEXTMENU   = 0x007B
 
 SW_RESTORE  = 9
-SW_MAXIMIZE = 3
 SW_SHOW     = 5
 
 IDI_INFORMATION = 32516
@@ -112,10 +106,7 @@ IDM_STATUS_ONLINE    = 1005
 IDM_STATUS_IDLE      = 1006
 IDM_STATUS_DND       = 1007
 IDM_STATUS_INVISIBLE = 1008
-IDM_VC_MUTE          = 1009
-IDM_VC_DEAF          = 1010
 IDM_VC_LEAVE         = 1011
-IDM_SOUNDS           = 1012
 IDM_SETTINGS         = 1013
 
 MF_STRING    = 0x00
@@ -127,7 +118,9 @@ MF_POPUP     = 0x10
 DISCORD_API = "https://discord.com/api/v9"
 GATEWAY_URL = "wss://gateway.discord.gg/?v=9&encoding=json&compress=zlib-stream"
 
-DISCORD_TITLES = ("Discord", "Discord PTB", "Discord Canary")
+                                                                           
+VERSION = "1.1.0"
+
 DND_STATUSES   = {"dnd"}
 
 _my_status: str = "online" 
@@ -144,7 +137,6 @@ _active_call_channel_id: str | None = None
 _outgoing_call_channel_id: str | None = None  
 _outgoing_call_time: float = 0.0     
 
-
 _has_unread: bool = False
 
 _unread_channels: set[str] = set()
@@ -154,7 +146,7 @@ _vc_join_time:  float = 0.0
 _VC_JOIN_GRACE: float = 3.0  
 
 def _varint_encode(value: int) -> bytes:
-    """Encode a non-negative integer as a protobuf varint."""
+
     parts = []
     while value > 127:
         parts.append((value & 0x7F) | 0x80)
@@ -162,9 +154,8 @@ def _varint_encode(value: int) -> bytes:
     parts.append(value)
     return bytes(parts)
 
-
 def _varint_decode(data: bytes, pos: int) -> tuple[int, int]:
-    """Decode a protobuf varint at `pos`. Returns (value, new_pos)."""
+
     result = shift = 0
     while True:
         b = data[pos]; pos += 1
@@ -173,18 +164,15 @@ def _varint_decode(data: bytes, pos: int) -> tuple[int, int]:
             return result, pos
         shift += 7
 
-
 def _build_status_field(status: str) -> bytes:
-    """Build the protobuf bytes for PreloadedUserSettings.status."""
+
     status_bytes = status.encode("utf-8")
     string_value    = b"\x0a" + _varint_encode(len(status_bytes)) + status_bytes
     status_settings = b"\x0a" + _varint_encode(len(string_value)) + string_value
     return b"\x5a" + _varint_encode(len(status_settings)) + status_settings
 
-
 def _replace_or_add_field11(proto_bytes: bytes, new_field11: bytes) -> bytes:
-    """Return a copy of `proto_bytes` with field 11 replaced by `new_field11`.
-    If field 11 is absent it is appended at the end."""
+
     result   = bytearray()
     pos      = 0
     replaced = False
@@ -237,6 +225,8 @@ _balloon_pending_key:   str     = "NewMessage"
 
 _balloon_refcount:    int       = 0
 
+_pending_update_info: "dict | None" = None                                                
+
 _SOUND_APP_KEY   = "DiscordBalloonNotifier"
 
 _SOUND_EVENTS: list[tuple[str, str]] = [
@@ -252,10 +242,9 @@ _SOUND_EVENTS: list[tuple[str, str]] = [
     ("UserJoinedVC", "User Joined VC"),
     ("UserLeftVC",   "User Left VC"),
 ]
-_SOUND_EVENT_KEY = "NewMessage"
 
 def _register_sound_event() -> None:
-    """this is unused sdjklgasg"""
+
     try:
         app_path = rf"AppEvents\Schemes\Apps\{_SOUND_APP_KEY}"
         with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, app_path,
@@ -286,9 +275,8 @@ def _register_sound_event() -> None:
     except Exception as e:
         print(f"[sound] Failed to register sound event: {e}")
 
-
 def _get_sound_path(event_key: str) -> "str | None":
-    """Return the .wav path for an event: custom config first, then registry fallback."""
+
     cfg = load_config()
     custom = cfg.get("custom_sounds", {}).get(event_key, "")
     if custom and os.path.isfile(custom):
@@ -306,9 +294,8 @@ def _get_sound_path(event_key: str) -> "str | None":
         pass
     return None
 
-
 def _get_per_user_sound_path(user_id: str, event: str) -> "str | None":
-    """Return custom .wav path for a specific user+event, or None if not configured."""
+
     if not user_id:
         return None
     cfg = load_config()
@@ -319,9 +306,8 @@ def _get_per_user_sound_path(user_id: str, event: str) -> "str | None":
         return path
     return None
 
-
 def _play_per_user_sound(user_id: str, event: str) -> bool:
-    """Play a per-user sound if one is configured.  Returns True if played."""
+
     path = _get_per_user_sound_path(user_id, event)
     if not path:
         return False
@@ -333,10 +319,8 @@ def _play_per_user_sound(user_id: str, event: str) -> bool:
     print(f"[sound] Per-user sound: user={user_id} event={event}")
     return True
 
-
-
 def _get_volume() -> float:
-    """Return the current volume as 0.0–1.0 from config (default 1.0)."""
+
     try:
         return max(0.0, min(1.0, float(load_config().get("sound_volume", 1.0))))
     except Exception:
@@ -381,16 +365,14 @@ _group_channel: dict[str, object] = {
 _sound_cache: dict[str, tuple[int, object]] = {}
 _sound_cache_lock = threading.Lock()
 
-
 def _clear_sound_cache() -> None:
-    """Invalidate the entire sound cache (call after saving settings)."""
+
     with _sound_cache_lock:
         _sound_cache.clear()
     print("[sound] Cache cleared")
 
-
 def _load_sound(path: str) -> "object | None":
-    """Return a cached pygame.mixer.Sound for *path*, decoding if necessary."""
+
     if not _pygame_ok:
         return None
 
@@ -432,7 +414,7 @@ def _load_sound(path: str) -> "object | None":
         return None
 
 def _stop_group(group: str) -> None:
-    """Stop the active channel for this group.  Must be called with the group lock held."""
+
     ch = _group_channel.get(group)
     if ch is not None:
         try:
@@ -441,10 +423,9 @@ def _stop_group(group: str) -> None:
             pass
         _group_channel[group] = None
 
-
 def _pygame_play(path: str, volume: float, group: str,
                  loops: int = 0) -> "object | None":
-    """Stop the current group sound, then play *path* at *volume*."""
+
     snd = _load_sound(path)
     if snd is None:
         try:
@@ -463,9 +444,8 @@ def _pygame_play(path: str, volume: float, group: str,
 
     return ch
 
-
 def _play_notification_sound(event_key: str = "NewMessage") -> None:
-    """Play the sound for *event_key* in its group, interrupting any same-group sound."""
+
     group = _SOUND_GROUP.get(event_key, "message")
 
     def _play() -> None:
@@ -485,16 +465,13 @@ def _play_notification_sound(event_key: str = "NewMessage") -> None:
     threading.Thread(target=_play, daemon=True).start()
 
 _incoming_call_stop  = threading.Event()
-_incoming_call_thread: threading.Thread | None = None
 _outgoing_call_stop  = threading.Event()
-_outgoing_call_thread: threading.Thread | None = None
-
 
 def _start_looping_sound(event_key: str,
                           stop_event: threading.Event,
                           label: str,
                           path_override: "str | None" = None) -> threading.Thread:
-    """Loop *event_key*'s sound in its group until *stop_event* is set. """
+
     group = _SOUND_GROUP.get(event_key, "vc_call")
     stop_event.clear()
 
@@ -527,19 +504,16 @@ def _start_looping_sound(event_key: str,
     t.start()
     return t
 
-
 def _stop_looping_sound(stop_event: threading.Event,
                          event_key: str = "IncomingCall") -> None:
-    """Signal the loop thread to stop and immediately silence the group channel."""
+
     group = _SOUND_GROUP.get(event_key, "vc_call")
     stop_event.set()
     with _group_locks[group]:
         _stop_group(group)
 
-
 def _start_incoming_call_sound(path_override: "str | None" = None) -> None:
-    global _incoming_call_thread
-    _incoming_call_thread = _start_looping_sound(
+    _start_looping_sound(
         "IncomingCall", _incoming_call_stop, "Incoming call",
         path_override=path_override,
     )
@@ -547,26 +521,21 @@ def _start_incoming_call_sound(path_override: "str | None" = None) -> None:
 def _stop_incoming_call_sound() -> None:
     _stop_looping_sound(_incoming_call_stop, "IncomingCall")
 
-
 def _open_sound_control_panel() -> None:
-    """Open the Windows Sound control panel on the Sounds tab."""
+
     try:
         subprocess.Popen(["rundll32.exe", "shell32.dll,Control_RunDLL",
                           "mmsys.cpl,,2"], close_fds=True)
     except Exception as e:
         print(f"[sound] Failed to open Sound control panel: {e}")
 
-
-
-
 def _get_base_dir() -> str:
-    """Return the directory next to the .exe (frozen) or the script file (dev)."""
+
     if getattr(sys, "frozen", False):
         return os.path.dirname(sys.executable)
     return os.path.dirname(os.path.abspath(__file__))
 
 CONFIG_FILE = os.path.join(_get_base_dir(), "discord_balloon_config.json")
-
 
 def load_config() -> dict:
     try:
@@ -574,7 +543,6 @@ def load_config() -> dict:
             return json.load(f)
     except Exception:
         return {}
-
 
 def save_config(data: dict) -> None:
     try:
@@ -588,7 +556,6 @@ _log_queue: queue.Queue = queue.Queue()
 import builtins
 _real_print = builtins.print
 
-
 def _intercepted_print(*args, sep=" ", end="\n", **kwargs):
     msg = sep.join(str(a) for a in args)
     if _token and _token in msg:
@@ -599,16 +566,12 @@ def _intercepted_print(*args, sep=" ", end="\n", **kwargs):
     except Exception:
         pass
 
-
 builtins.print = _intercepted_print
 
 def _get_langs_dir() -> str:
-    """Return the absolute path to the langs/ folder."""
+
     return os.path.join(_get_base_dir(), "langs")
 
-
-def _load_lang_file(code: str) -> "dict | None":
-    """Load and return the string dict for language *code*, or None on failure."""
     path = os.path.join(_get_langs_dir(), f"{code}.json")
     try:
         with open(path, encoding="utf-8") as f:
@@ -638,10 +601,11 @@ _STRINGS_EN_BUILTIN: dict[str, str] = {
     "balloon_calling":     "{caller} is calling you\u2026",
     "grp_client":          " Open with ",
     "radio_discord":       "Discord",
+    "radio_canary":        "Discord Canary",
     "radio_dm":            "Discord Messenger",
     "lbl_dm_path":         "Path to DiscordMessenger.exe:",
     "btn_browse":          "Browse\u2026",
-    # tray context menu
+                       
     "menu_voice_header":   "Voice channel",
     "menu_leave_call":     "  \u260e Leave Call",
     "menu_status":         "Status",
@@ -664,6 +628,7 @@ _STRINGS_EN_BUILTIN: dict[str, str] = {
     "tab_sounds":          "Custom Sounds",
     "tab_icons":           "Tray Icons",
     "tab_per_user":        "Per-User",
+    "tab_more":            "More",
     "btn_ok":              "OK",
     "btn_apply":           "Apply",
     "grp_notif_mode":      " Notification Mode ",
@@ -691,7 +656,27 @@ _STRINGS_EN_BUILTIN: dict[str, str] = {
     "icons_hint":          "Choose a PNG or ICO icon for each tray state (16\u00d716 or 32\u00d732 recommended).\nLeave blank to keep the default Discord icon for that state.",
     "grp_icons":           " Icons by State ",
 
-    # Exit dialog
+                        
+    "grp_balloon_sound":      " Balloon Sound Mode ",
+    "chk_balloon_sound":      "Use Windows balloon sound (all modes)",
+    "chk_balloon_sound_desc": "Play sounds via the Windows notification system instead of pygame.\nThis is how Queue mode works — the OS plays the sound as the balloon appears.\nWhen enabled, per-user and pygame volume controls are bypassed for message sounds.",
+
+                   
+    "grp_exit_settings":   " On Exit ",
+    "exit_chk_close_discord": "Close Discord on exit",
+
+                 
+    "grp_update":              " Updates ",
+    "chk_check_updates":       "Check for updates on startup",
+    "chk_check_updates_desc":  "Check GitHub for a new version when Balloncord starts.",
+    "chk_auto_update":         "Auto-update Balloncord",
+    "chk_auto_update_desc":    "Automatically download and install new versions on startup (requires Check for updates).",
+    "balloon_update_title":    "Balloncord \u2014 Update available",
+    "balloon_update_body":     "A new version ({ver}) is available. Click to download now.",
+    "balloon_updated_title":   "Balloncord \u2014 Update ready",
+    "balloon_updated_body":    "v{ver} downloaded. Restart Balloncord to apply.",
+
+                 
     "exit_dlg_title":      "Exit",
     "exit_dlg_msg":        "Exit the Discord Balloon Notifier?",
     "exit_chk_also_close": "Also close Discord",
@@ -701,9 +686,8 @@ _STRINGS_EN_BUILTIN: dict[str, str] = {
 
 _lang_cache: dict[str, dict] = {}
 
-
 def _get_lang_strings(code: str) -> dict:
-    """Return the string dict for *code*, loading from langs/code.json if needed."""
+
     if code not in _lang_cache:
         path = os.path.join(_get_langs_dir(), f"{code}.json")
         try:
@@ -713,13 +697,8 @@ def _get_lang_strings(code: str) -> dict:
             _lang_cache[code] = {}
     return _lang_cache[code]
 
-
 def _available_languages() -> list:
-    """Return [(code, label), ...] for every .json found in the langs/ folder.
 
-    The label is read from "lang_label" inside the file (e.g. "English", "Espanol").
-    Falls back to a hard-coded list when the folder is missing or empty.
-    """
     langs_dir = _get_langs_dir()
     results: list = []
     try:
@@ -739,9 +718,8 @@ def _available_languages() -> list:
         results.append(("es", "Espanol"))
     return results
 
-
 def _t(key: str, **kwargs) -> str:
-    """Return the localised string for the current language, with optional format args."""
+
     lang = load_config().get("language", "en")
     strings = _get_lang_strings(lang)
     value = strings.get(key)
@@ -749,8 +727,6 @@ def _t(key: str, **kwargs) -> str:
         en_strings = _get_lang_strings("en")
         value = en_strings.get(key, _STRINGS_EN_BUILTIN.get(key, key))
     return value.format(**kwargs) if kwargs else value
-
-
 
 class NOTIFYICONDATAW(ctypes.Structure):
     _fields_ = [
@@ -771,13 +747,12 @@ class NOTIFYICONDATAW(ctypes.Structure):
         ("hBalloonIcon",     ctypes.wintypes.HICON),
     ]
 
-
 NIIF_USER = 0x00000004 
 
 MB_ICONQUESTION = 0x00000020
 
 def _play_question_beep() -> None:
-    """Play the Windows 'Question' system sound (used as balloon default)."""
+
     threading.Thread(
         target=lambda: user32.MessageBeep(MB_ICONQUESTION),
         daemon=True,
@@ -791,7 +766,6 @@ _pfp_lock      = threading.Lock()
 _avatar_hicon: int = 0 
 _orig_hicon:   int = 0
 
-
 class _GdipStartupInput(ctypes.Structure):
     _fields_ = [
         ("GdiplusVersion",           ctypes.c_uint32),
@@ -802,17 +776,15 @@ class _GdipStartupInput(ctypes.Structure):
 
 _ULongPtr = ctypes.c_uint64 if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_ulong
 
-
 def _pfp_cdn_url(user_id: str, avatar_hash: "str | None") -> str:
-    """when haces tus momos en python."""
+
     if avatar_hash:
         return f"https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png?size=64"
     idx = (int(user_id) >> 22) % 6
     return f"https://cdn.discordapp.com/embed/avatars/{idx}.png"
 
-
 def _download_pfp(user_id: str, avatar_hash: "str | None") -> "str | None":
-    """Downloads the PFP"""
+
     if not user_id:
         return None
     key = (user_id, avatar_hash)
@@ -837,9 +809,8 @@ def _download_pfp(user_id: str, avatar_hash: "str | None") -> "str | None":
         print(f"[avatar] Download FAILED WHAT({user_id}): {exc}")
         return None
 
-
 def _png_to_hicon(png_path: str, size: int = 32) -> int:
-    """asdfasjkgl"""
+
     if not png_path or not os.path.exists(png_path):
         print(f"[avatar] _png_to_hicon: file not found → {png_path}")
         return 0
@@ -895,9 +866,8 @@ def _png_to_hicon(png_path: str, size: int = 32) -> int:
     print(f"[avatar] HICON loaded: {hicon:#010x} desde {os.path.basename(png_path)}")
     return hicon
 
-
 def _set_discord_icon_on_window(win: tk.Toplevel) -> None:
-    """Set the Discord .exe icon on a Tkinter Toplevel window (taskbar + title bar)."""
+
     try:
         exe = _find_discord_exe()
         if exe:
@@ -905,9 +875,8 @@ def _set_discord_icon_on_window(win: tk.Toplevel) -> None:
     except Exception:
         pass 
 
-
 def _set_tray_icon_handle(hicon: int) -> None:
-    """does anyone read these"""
+
     if not (_nid and _hwnd) or not hicon:
         return
     tmp = NOTIFYICONDATAW()
@@ -918,9 +887,8 @@ def _set_tray_icon_handle(hicon: int) -> None:
     tmp.hIcon  = ctypes.c_void_p(hicon)
     shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(tmp))
 
-
 def _restore_tray_icon() -> None:
-    """this fixes a thing"""
+
     global _avatar_hicon, _balloon_refcount
     _balloon_refcount = max(0, _balloon_refcount - 1)
     if _balloon_refcount > 0:
@@ -931,7 +899,7 @@ def _restore_tray_icon() -> None:
     _update_tray_icon_for_state()
 
 def _file_to_hicon(path: str, size: int = 16) -> int:
-    """Load a PNG or ICO file as an HICON. Returns 0 on failure."""
+
     if not path or not os.path.exists(path):
         return 0
     ext = os.path.splitext(path)[1].lower()
@@ -947,7 +915,7 @@ def _file_to_hicon(path: str, size: int = 16) -> int:
     return _png_to_hicon(path, size)
 
 def _clear_state_icon_cache() -> None:
-    """Invalidate all cached state HICONs (call after saving tray icon settings)."""
+
     global _state_icon_cache
     for hicon in _state_icon_cache.values():
         if hicon:
@@ -958,9 +926,8 @@ def _clear_state_icon_cache() -> None:
     _state_icon_cache = {}
     print("[tray] State icon cache cleared")
 
-
 def _get_state_hicon() -> int:
-    """Return the HICON for the current tray state, falling back to _orig_hicon."""
+
     if _vc_channel_id is not None:
         if _vc_self_deaf:
             state = "deaf"
@@ -986,9 +953,8 @@ def _get_state_hicon() -> int:
 
     return _orig_hicon
 
-
 def _update_tray_icon_for_state() -> None:
-    """Apply the state-appropriate tray icon. Safe to call from any thread."""
+
     hicon = _get_state_hicon()
     if not hicon:
         return
@@ -996,7 +962,6 @@ def _update_tray_icon_for_state() -> None:
         _nid.hIcon = ctypes.c_void_p(hicon)
     _set_tray_icon_handle(hicon)
 _pending_avatar_png: "str | None" = None
-
 
 def _set_pending_avatar(png_path: "str | None") -> None:
     global _pending_avatar_png
@@ -1046,7 +1011,6 @@ def _find_discord_exe() -> str | None:
             return matches[0]
     return None
 
-
 def _load_discord_icon() -> ctypes.wintypes.HICON:
     exe = _find_discord_exe()
     if exe:
@@ -1074,7 +1038,7 @@ class PROCESSENTRY32W(ctypes.Structure):
 DISCORD_EXE_NAMES = {"discord.exe", "discordptb.exe", "discordcanary.exe"}
 
 def _get_discord_pids() -> set[int]:
-    """Return all PIDs whose exe name is a Discord variant."""
+
     pids: set[int] = set()
     snap = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
     if snap == ctypes.wintypes.HANDLE(-1).value:
@@ -1091,11 +1055,8 @@ def _get_discord_pids() -> set[int]:
         kernel32.CloseHandle(snap)
     return pids
 
-
-
-
 def _find_discord_hwnd() -> ctypes.wintypes.HWND | None:
-    """Find the main visible Discord window by matching process IDs."""
+
     discord_pids = _get_discord_pids()
     if not discord_pids:
         return None
@@ -1122,104 +1083,6 @@ def _find_discord_hwnd() -> ctypes.wintypes.HWND | None:
     user32.EnumWindows(EnumWindowsProc(callback), 0)
     return result[0] if result else None
 
-_VC_BTN_DEFAULTS: dict[str, dict] = {
-    "mute":       {"x": 160, "y_from_bottom": 26}, 
-    "deafen":     {"x": 192, "y_from_bottom": 26}, 
-    "disconnect": {"x": 222, "y_from_bottom": 78}, 
-}
-
-
-def _get_vc_button_pos(action: str) -> tuple[int, int] | None:
-    cfg      = load_config()
-    override = cfg.get("vc_button_offsets", {}).get(action, {})
-    default  = _VC_BTN_DEFAULTS.get(action)
-    if not default:
-        return None
-    return (override.get("x",            default["x"]),
-            override.get("y_from_bottom", default["y_from_bottom"]))
-
-
-class _MOUSEINPUT(ctypes.Structure):
-    _fields_ = [("dx",          ctypes.c_long),
-                ("dy",          ctypes.c_long),
-                ("mouseData",   ctypes.wintypes.DWORD),
-                ("dwFlags",     ctypes.wintypes.DWORD),
-                ("time",        ctypes.wintypes.DWORD),
-                ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong))]
-
-class _INPUT(ctypes.Structure):
-    _fields_ = [("type", ctypes.wintypes.DWORD), ("mi", _MOUSEINPUT)]
-
-_MOUSEEVENTF_MOVE     = 0x0001
-_MOUSEEVENTF_LEFTDOWN = 0x0002
-_MOUSEEVENTF_LEFTUP   = 0x0004
-_MOUSEEVENTF_ABSOLUTE = 0x8000
-
-
-def _discord_click_vc_button(action: str) -> bool:
-    """Click mute / deafen / disconnect using SendInput.
-
-    THIS WAS FAILURE PLEASE DON'T LOOK, NONE OF MY METHODS WORKED
-    except for the disconnect one.
-    
-    basically, muting yourself or anything would disconnect yourself,
-    and discord would say it disconnected because you started calling
-    from another device, SO, i made the disconnect option mute yourself,
-    and disconnect you afterwards. It works
-    """
-    pos = _get_vc_button_pos(action)
-    if not pos:
-        print(f"[vc] Unknown action: {action}")
-        return False
-
-    discord_hwnd = _find_discord_hwnd()
-    if not discord_hwnd:
-        print(f"[vc] Discord window not found — cannot {action}")
-        return False
-
-    x_off, y_fb = pos
-    rect = ctypes.wintypes.RECT()
-    user32.GetWindowRect(discord_hwnd, ctypes.byref(rect))
-    sx = rect.left + x_off
-    sy = rect.bottom - y_fb
-
-    print(f"[vc] {action}: target screen ({sx}, {sy})  "
-          f"discord rect=[{rect.left},{rect.top},{rect.right},{rect.bottom}]")
-
-
-    prev_hwnd = user32.GetForegroundWindow()
-    user32.AllowSetForegroundWindow(0xFFFFFFFF)
-    if user32.IsIconic(discord_hwnd):
-        user32.ShowWindow(discord_hwnd, SW_RESTORE)
-        time.sleep(0.25)
-    user32.SetForegroundWindow(discord_hwnd)
-    time.sleep(0.08)
-
-    vx = user32.GetSystemMetrics(76)  
-    vy = user32.GetSystemMetrics(77) 
-    vw = user32.GetSystemMetrics(78) 
-    vh = user32.GetSystemMetrics(79) 
-    abs_x = int((sx - vx) * 65536 / vw)
-    abs_y = int((sy - vy) * 65536 / vh)
-
-    inputs = (_INPUT * 3)(
-        _INPUT(0, _MOUSEINPUT(abs_x, abs_y, 0,
-                              _MOUSEEVENTF_MOVE | _MOUSEEVENTF_ABSOLUTE, 0, None)),
-        _INPUT(0, _MOUSEINPUT(abs_x, abs_y, 0,
-                              _MOUSEEVENTF_LEFTDOWN | _MOUSEEVENTF_ABSOLUTE, 0, None)),
-        _INPUT(0, _MOUSEINPUT(abs_x, abs_y, 0,
-                              _MOUSEEVENTF_LEFTUP | _MOUSEEVENTF_ABSOLUTE, 0, None)),
-    )
-    user32.SendInput(3, inputs, ctypes.sizeof(_INPUT))
-
-    def _restore():
-        time.sleep(0.2)
-        if prev_hwnd and user32.IsWindow(prev_hwnd):
-            user32.SetForegroundWindow(prev_hwnd)
-    threading.Thread(target=_restore, daemon=True).start()
-    return True
-
-
 def _launch_discord() -> None:
     local = os.environ.get("LOCALAPPDATA", "")
     for folder, exename in [
@@ -1234,7 +1097,6 @@ def _launch_discord() -> None:
     exe = _find_discord_exe()
     if exe:
         subprocess.Popen([exe], close_fds=True)
-
 
 def _maximize_discord() -> None:
     hwnd = _find_discord_hwnd()
@@ -1255,12 +1117,79 @@ def _maximize_discord() -> None:
 
 DM_CLASS_NAME = "DiscordMessengerClass"
 
-
 def _find_dm_hwnd() -> ctypes.wintypes.HWND | None:
-    """Return the main Discord Messenger window handle by class name."""
+
     hwnd = user32.FindWindowW(DM_CLASS_NAME, None)
     return hwnd if hwnd else None
 
+def _find_canary_hwnd() -> ctypes.wintypes.HWND | None:
+
+    canary_pids: set[int] = set()
+    snap = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
+    if snap == ctypes.wintypes.HANDLE(-1).value:
+        return None
+    try:
+        entry = PROCESSENTRY32W()
+        entry.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+        ok = kernel32.Process32FirstW(snap, ctypes.byref(entry))
+        while ok:
+            if entry.szExeFile.lower() == "discordcanary.exe":
+                canary_pids.add(entry.th32ProcessID)
+            ok = kernel32.Process32NextW(snap, ctypes.byref(entry))
+    finally:
+        kernel32.CloseHandle(snap)
+
+    if not canary_pids:
+        return None
+
+    result: list = []
+    EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool,
+                                          ctypes.wintypes.HWND,
+                                          ctypes.wintypes.LPARAM)
+    pid_buf = ctypes.wintypes.DWORD(0)
+
+    def callback(hwnd, _):
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        buf = ctypes.create_unicode_buffer(512)
+        user32.GetWindowTextW(hwnd, buf, 512)
+        if not buf.value:
+            return True
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid_buf))
+        if pid_buf.value in canary_pids:
+            result.append(hwnd)
+            return False
+        return True
+
+    user32.EnumWindows(EnumWindowsProc(callback), 0)
+    return result[0] if result else None
+
+def _launch_discord_canary() -> None:
+    local = os.environ.get("LOCALAPPDATA", "")
+    updater = os.path.join(local, "DiscordCanary", "Update.exe")
+    if os.path.exists(updater):
+        subprocess.Popen([updater, "--processStart", "DiscordCanary.exe"],
+                         close_fds=True)
+        return
+    exe = os.path.join(local, "DiscordCanary", "DiscordCanary.exe")
+    if os.path.exists(exe):
+        subprocess.Popen([exe], close_fds=True)
+
+def _maximize_discord_canary() -> None:
+    hwnd = _find_canary_hwnd()
+    if not hwnd:
+        _launch_discord_canary()
+        return
+    ASFW_ANY        = 0xFFFFFFFF
+    VK_MENU         = 0x12
+    KEYEVENTF_KEYUP = 0x0002
+    user32.AllowSetForegroundWindow(ASFW_ANY)
+    user32.keybd_event(VK_MENU, 0, 0, 0)
+    user32.keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0)
+    if user32.IsIconic(hwnd):
+        user32.ShowWindow(hwnd, SW_RESTORE)
+    user32.BringWindowToTop(hwnd)
+    user32.SetForegroundWindow(hwnd)
 
 def _launch_discord_messenger() -> None:
     exe = load_config().get("dm_exe_path", "")
@@ -1272,7 +1201,6 @@ def _launch_discord_messenger() -> None:
             print(f"[dm] Failed to launch {exe!r}: {e}")
     else:
         print("[dm] DiscordMessenger.exe path not configured or not found.")
-
 
 def _maximize_discord_messenger() -> None:
     hwnd = _find_dm_hwnd()
@@ -1292,11 +1220,19 @@ def _maximize_discord_messenger() -> None:
     user32.BringWindowToTop(hwnd)
     user32.SetForegroundWindow(hwnd)
 
-
 def _open_client(channel_url: "str | None" = None) -> None:
-    """Open the client selected in settings, navigating to channel_url if possible."""
-    if load_config().get("client_app") == "dm":
+
+    client = load_config().get("client_app", "discord")
+    if client == "dm":
         _maximize_discord_messenger()
+    elif client == "canary":
+        if channel_url:
+            try:
+                os.startfile(channel_url)
+                return
+            except Exception as e:
+                print(f"[balloon] Failed to open deep link {channel_url!r}: {e}")
+        _maximize_discord_canary()
     else:
         if channel_url:
             try:
@@ -1310,11 +1246,12 @@ import dataclasses
 
 @dataclasses.dataclass
 class _QueuedNotif:
-    title:  str
-    body:   str
-    url:    "str | None"
-    ts:     float = dataclasses.field(default_factory=time.time)
-    read:   bool  = False
+    title:     str
+    body:      str
+    url:       "str | None"
+    ts:        float = dataclasses.field(default_factory=time.time)
+    read:      bool  = False
+    sound_key: str   = "NewMessage"
 
 _notif_queue:      list[_QueuedNotif] = []
 _notif_queue_lock: threading.Lock     = threading.Lock()
@@ -1326,9 +1263,10 @@ _replace_timer:     "threading.Timer | None" = None
 _queue_sound_cooldown: float = 4.0 
 _queue_last_sound_time: float = 0.0
 
+def _raw_show_balloon(title: str, body: str, url: "str | None",
+                      suppress_sound: bool = False,
+                      sound_key: str = "NewMessage") -> None:
 
-def _raw_show_balloon(title: str, body: str, url: "str | None") -> None:
-    """Actually fire the Win32 balloon notification."""
     global _last_balloon_url, _avatar_hicon, _pending_avatar_png
     if not (_nid and _hwnd):
         return
@@ -1354,19 +1292,27 @@ def _raw_show_balloon(title: str, body: str, url: "str | None") -> None:
     _nid.uFlags          = NIF_INFO | NIF_ICON | NIF_MESSAGE | NIF_TIP
     _nid.szInfoTitle     = title[:63]
     _nid.szInfo          = body[:255]
-    is_queue = load_config().get("notif_style", "instant") == "queue"
-    _nid.dwInfoFlags = balloon_flags_base if is_queue else (balloon_flags_base | NIIF_NOSOUND)
+    cfg2 = load_config()
+    is_queue            = cfg2.get("notif_style", "instant") == "queue"
+    balloon_sound_mode  = cfg2.get("balloon_sound_mode", False) and not suppress_sound
+    use_balloon_sound   = is_queue or balloon_sound_mode
+                                                                            
+                                                                             
+    if balloon_sound_mode and not is_queue:
+        wav_path = _get_sound_path(sound_key)
+        _set_balloon_sound_registry(wav_path)
+    _nid.dwInfoFlags = balloon_flags_base if use_balloon_sound else (balloon_flags_base | NIIF_NOSOUND)
     _nid.uTimeout        = 7000
     global _balloon_refcount
     _balloon_refcount += 1
     shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(_nid))
 
+def _style_instant(title: str, body: str, url: "str | None",
+                   sound_key: str = "NewMessage") -> None:
+    _raw_show_balloon(title, body, url, sound_key=sound_key)
 
-def _style_instant(title: str, body: str, url: "str | None") -> None:
-    _raw_show_balloon(title, body, url)
-
-
-def _style_replace(title: str, body: str, url: "str | None") -> None:
+def _style_replace(title: str, body: str, url: "str | None",
+                   sound_key: str = "NewMessage") -> None:
     global _last_balloon_time, _replace_pending, _replace_timer
     cfg     = load_config()
     cooldown = float(cfg.get("replace_cooldown", 4.0))
@@ -1379,9 +1325,9 @@ def _style_replace(title: str, body: str, url: "str | None") -> None:
 
     if elapsed >= cooldown:
         _last_balloon_time = now
-        _raw_show_balloon(title, body, url)
+        _raw_show_balloon(title, body, url, sound_key=sound_key)
     else:
-        _replace_pending = _QueuedNotif(title, body, url)
+        _replace_pending = _QueuedNotif(title, body, url, sound_key=sound_key)
         delay = cooldown - elapsed
 
         def _fire():
@@ -1391,12 +1337,12 @@ def _style_replace(title: str, body: str, url: "str | None") -> None:
             _replace_pending = None
             if pend:
                 _last_balloon_time = time.time()
-                _raw_show_balloon(pend.title, pend.body, pend.url)
+                _raw_show_balloon(pend.title, pend.body, pend.url,
+                                  sound_key=pend.sound_key)
 
         _replace_timer = threading.Timer(delay, _fire)
         _replace_timer.daemon = True
         _replace_timer.start()
-
 
 def _set_balloon_sound_registry(wav_path: "str | None") -> None:
     try:
@@ -1406,7 +1352,6 @@ def _set_balloon_sound_registry(wav_path: "str | None") -> None:
             winreg.SetValueEx(key, None, 0, winreg.REG_SZ, wav_path or "")
     except Exception as e:
         print(f"[sound] Failed to set balloon sound registry: {e}")
-
 
 def _style_queue_add(title: str, body: str, url: "str | None",
                      sound_key: str = "NewMessage") -> None:
@@ -1444,12 +1389,13 @@ def _style_queue_add(title: str, body: str, url: "str | None",
 
     _raw_show_balloon(balloon_title, balloon_body, None)
 
-
 def show_balloon(title: str, body: str, url: "str | None" = None,
                  is_system: bool = False, sound_key: str = "NewMessage",
                  channel_id: "str | None" = None) -> None:
     if is_system:
-        _raw_show_balloon(title, body, url)
+                                                                       
+                                                                       
+        _raw_show_balloon(title, body, url, suppress_sound=True)
         return
     global _has_unread
     _has_unread = True
@@ -1458,14 +1404,20 @@ def show_balloon(title: str, body: str, url: "str | None" = None,
     _update_tray_icon_for_state()
     style = load_config().get("notif_style", "instant")
     if style == "replace":
-        _style_replace(title, body, url)
+        _style_replace(title, body, url, sound_key=sound_key)
     elif style == "queue":
         _style_queue_add(title, body, url, sound_key=sound_key)
     else:
-        _style_instant(title, body, url)
-
+        _style_instant(title, body, url, sound_key=sound_key)
 
 def _open_balloon_url() -> None:
+    global _pending_update_info
+                                                                                  
+    if _pending_update_info is not None:
+        info = _pending_update_info
+        _pending_update_info = None
+        _launch_updater_download(info.get("version", ""), info.get("download_url", ""))
+        return
     style = load_config().get("notif_style", "instant")
     if style == "queue":
         global _has_unread
@@ -1478,8 +1430,6 @@ def _open_balloon_url() -> None:
         return
     _open_client(_last_balloon_url)
 
-
-
 def _send_gateway_message(data: dict) -> None:
     if _gw_ws is None or _gw_loop is None or _gw_loop.is_closed():
         return
@@ -1487,7 +1437,6 @@ def _send_gateway_message(data: dict) -> None:
         asyncio.run_coroutine_threadsafe(_gw_ws.send(json.dumps(data)), _gw_loop)
     except Exception as e:
         print(f"[gateway] Send error: {e}")
-
 
 def _gateway_set_status(status: str) -> None:
     global _my_status
@@ -1502,31 +1451,6 @@ def _gateway_set_status(status: str) -> None:
         )
     print(f"[app] Status set to {status}")
 
-
-def _gateway_vc_update(guild_id: str | None, channel_id: str | None,
-                        self_mute: bool, self_deaf: bool) -> None:
-    global _vc_guild_id, _vc_channel_id, _vc_self_mute, _vc_self_deaf
-    _vc_guild_id   = guild_id
-    _vc_channel_id = channel_id
-    _vc_self_mute  = self_mute
-    _vc_self_deaf  = self_deaf
-    _send_gateway_message({
-        "op": 4,
-        "d": {
-            "guild_id":   guild_id,
-            "channel_id": channel_id,
-            "self_mute":  self_mute,
-            "self_deaf":  self_deaf,
-        },
-    })
-    if channel_id is None:
-        print("[vc] Left voice channel")
-    else:
-        mute_str = " (muted)"  if self_mute else ""
-        deaf_str = " (deafened)" if self_deaf else ""
-        print(f"[vc] Updated voice state{mute_str}{deaf_str}")
-
-
 def _was_mentioned(d: dict, my_user_id: str) -> bool:
 
     if any(u.get("id") == my_user_id for u in d.get("mentions", [])):
@@ -1540,7 +1464,6 @@ def _was_mentioned(d: dict, my_user_id: str) -> bool:
         return True
 
     return False
-
 
 def _leave_voice_channel() -> None:
     if not _vc_channel_id:
@@ -1568,8 +1491,6 @@ def _leave_voice_channel() -> None:
         },
     })
     print("[vc] Sent op 4 channel_id=None (leave voice)")
-
-
 
 def _kill_client_process() -> None:
     cfg = load_config()
@@ -1602,7 +1523,6 @@ def _kill_client_process() -> None:
             ok = kernel32.Process32NextW(snap, ctypes.byref(entry))
     finally:
         kernel32.CloseHandle(snap)
-
 
 def _load_question_photoimage(size: int = 32) -> "tk.PhotoImage | None":
     try:
@@ -1700,7 +1620,6 @@ def _load_question_photoimage(size: int = 32) -> "tk.PhotoImage | None":
         print(f"[icon] _load_question_photoimage failed: {e}")
         return None
 
-
 def _confirm_exit(hwnd) -> None:
     cfg       = load_config()
     close_pref = cfg.get("exit_close_client", None)
@@ -1773,8 +1692,6 @@ def _confirm_exit(hwnd) -> None:
     sh   = dlg.winfo_screenheight()
     dlg.geometry(f"{max(w,340)}x{max(h,160)}+{(sw-max(w,340))//2}+{(sh-max(h,160))//2}")
 
-
-
 def _show_context_menu(hwnd) -> None:
     try:
         TPM_RETURNCMD   = 0x0100
@@ -1845,7 +1762,6 @@ def _show_context_menu(hwnd) -> None:
         elif cmd == IDM_STATUS_DND:       _gateway_set_status("dnd")
         elif cmd == IDM_STATUS_INVISIBLE: _gateway_set_status("invisible")
         elif cmd == IDM_VC_LEAVE:         _leave_voice_channel()
-        elif cmd == IDM_SOUNDS:           _open_sound_control_panel()
         elif cmd == IDM_SETTINGS:
             if _tk_root:              _tk_root.after(0, _open_settings_window)
         elif cmd == IDM_EXIT:
@@ -1853,7 +1769,6 @@ def _show_context_menu(hwnd) -> None:
 
     except Exception as e:
         print(f"[menu] Error: {e}")
-
 
 def _wnd_proc(hwnd, msg, wparam, lparam):
     global _balloon_visible, _balloon_pending_sound, _balloon_pending_key
@@ -1902,7 +1817,6 @@ def _wnd_proc(hwnd, msg, wparam, lparam):
 
     return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
 
-
 def _create_tray_icon() -> None:
     global _hwnd, _nid, _wnd_proc_ref
 
@@ -1936,7 +1850,8 @@ def _create_tray_icon() -> None:
     _nid.hIcon            = hicon
     _nid.szTip            = "Discord Balloon Notifier"
     shell32.Shell_NotifyIconW(NIM_ADD, ctypes.byref(_nid))
-
+                                                                         
+    _update_tray_icon_for_state()
 
 def _message_loop() -> None:
     _create_tray_icon()
@@ -1951,7 +1866,6 @@ def _parse_iso(ts: str) -> float:
         return datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
     except Exception:
         return 0.0
-
 
 def _parse_muted(guild_settings: list) -> tuple[set[str], set[str]]:
     now             = time.time()
@@ -1995,7 +1909,6 @@ async def _get_channel_info(http, token: str,
         pass
     return channel_name, guild_name
 
-
 async def _get_nick(http, token: str, guild_id: str | None, author: dict) -> str:
     user_id = author.get("id", "")
     name    = author.get("global_name") or author.get("username", "?")
@@ -2011,7 +1924,6 @@ async def _get_nick(http, token: str, guild_id: str | None, author: dict) -> str
         pass
     return name
 
-
 async def _fetch_user_status(http, token: str) -> str:
     try:
         async with http.get(f"{DISCORD_API}/users/@me/settings",
@@ -2021,7 +1933,6 @@ async def _fetch_user_status(http, token: str) -> str:
     except Exception:
         pass
     return "online"
-
 
 def _resolve_mentions(content: str, d: dict) -> str:
     user_map: dict[str, str] = {}
@@ -2048,9 +1959,8 @@ def _resolve_mentions(content: str, d: dict) -> str:
 
     return content
 
-
 async def _async_set_status_proto(token: str, new_status: str) -> None:
-    """mi pene"""
+
     import base64 as _b64
     import aiohttp
 
@@ -2080,7 +1990,6 @@ async def _async_set_status_proto(token: str, new_status: str) -> None:
                     print(f"[app] Proto PATCH falló: {r.status} {await r.text()}")
     except Exception as e:
         print(f"[app] Error en proto PATCH: {e}")
-
 
 async def run_gateway(token: str) -> None:
     global _gw_ws, _gw_loop, _my_status, _token, _has_unread
@@ -2145,9 +2054,7 @@ async def run_gateway(token: str) -> None:
                                     "device": "",
                                     "system_locale": "en-US",
                                     "browser_user_agent": (
-                                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                                        "AppleWebKit/537.36 (KHTML, like Gecko) "
-                                        "Chrome/120.0.0.0 Safari/537.36"
+
                                     ),
                                     "browser_version": "120.0.0.0",
                                     "os_version": "10",
@@ -2224,16 +2131,16 @@ async def run_gateway(token: str) -> None:
 
                             _my_status = await _fetch_user_status(http, token)
 
-                            # ── Seed unread state on connect ───────────────────
-                            # Strategy: cross-reference /users/@me/mentions (unread
-                            # mention messages) with read_state (last-read message ID
-                            # per channel). A mention is truly unread only if its
-                            # message snowflake ID is greater than the channel's
-                            # last_message_id in read_state (i.e. not yet acknowledged).
+                                                                                 
+                                                                                   
+                                                                                     
+                                                                                 
+                                                                                
+                                                                                        
                             _unread_channels.clear()
                             _has_unread = False
                             try:
-                                # Build a map of channel_id -> last read message ID from read_state
+                                                                                                   
                                 read_state_entries = d.get("read_state", {})
                                 if isinstance(read_state_entries, dict):
                                     read_state_entries = read_state_entries.get("entries", [])
@@ -2245,7 +2152,7 @@ async def run_gateway(token: str) -> None:
                                         last_read[ch_id] = str(lm)
 
                                 async with http.get(
-                                    f"{DISCORD_API}/users/@me/mentions"
+
                                     f"?limit=25&roles=true&everyone=true",
                                     headers={"Authorization": token},
                                 ) as r:
@@ -2256,7 +2163,7 @@ async def run_gateway(token: str) -> None:
                                             msg_id = str(msg.get("id", "0"))
                                             if not ch_id or ch_id in muted_channels:
                                                 continue
-                                            # Only count if the mention is newer than what we last read
+                                                                                                       
                                             already_read_up_to = last_read.get(ch_id, "0")
                                             if msg_id > already_read_up_to:
                                                 _unread_channels.add(ch_id)
@@ -2271,11 +2178,11 @@ async def run_gateway(token: str) -> None:
                             except Exception as _e:
                                 print(f"[gateway] Could not seed unread state: {_e}")
                             _update_tray_icon_for_state()
-                            # ──────────────────────────────────────────────────
+                                                                                
 
                             print(f"[gateway] Logged in as: {name} (id={my_user_id})")
                             print(f"[gateway] Status: {_my_status} | "
-                                  f"Muted servers: {len(muted_guilds)} | "
+
                                   f"Muted channels: {len(muted_channels)}")
                             show_balloon(_t("balloon_connected"), _t("balloon_signed_in", name=name), is_system=True)
                             if load_config().get("auto_open_client", False):
@@ -2287,8 +2194,8 @@ async def run_gateway(token: str) -> None:
                             continue
 
                         if t == "READY_SUPPLEMENTAL":
-                            # Intentionally ignored — used to incorrectly set _has_unread
-                            # without a channel_id, which could never be cleared.
+                                                                                         
+                                                                                 
                             continue
 
                         if t == "PRESENCE_UPDATE":
@@ -2562,7 +2469,6 @@ async def run_gateway(token: str) -> None:
                                 print(f"[msg] Skipped (mentions_only mode, no mention)")
                                 continue
 
-
                         content = d.get("content", "").strip()
                         if not content:
                             attachments = d.get("attachments", [])
@@ -2646,12 +2552,13 @@ async def run_gateway(token: str) -> None:
                                      sound_key="NewMention" if _was_mentioned(d, my_user_id) else "NewMessage")
 
                         if load_config().get("notif_style", "instant") != "queue":
-                            author_id = author.get("id", "")
-                            if not _play_per_user_sound(author_id, "message"):
-                                if _was_mentioned(d, my_user_id):
-                                    _play_notification_sound("NewMention")
-                                else:
-                                    _play_notification_sound("NewMessage")
+                            if not load_config().get("balloon_sound_mode", False):
+                                author_id = author.get("id", "")
+                                if not _play_per_user_sound(author_id, "message"):
+                                    if _was_mentioned(d, my_user_id):
+                                        _play_notification_sound("NewMention")
+                                    else:
+                                        _play_notification_sound("NewMessage")
 
         except Exception as e:
             print(f"[gateway] Error: {e}")
@@ -2672,7 +2579,6 @@ XP_HITEXT    = "#FFFFFF"
 XP_TEXT      = "#000000" 
 XP_GREY_TXT  = "#444444" 
 XP_TITLEBAR  = "#0054E3"
-XP_TITLEBAR2 = "#2B89E5"  
 XP_BTN_TXT   = "#000000"
 CMD_BG       = "#000000"
 CMD_FG       = "#C0C0C0" 
@@ -2687,7 +2593,7 @@ XP_FONT_BOLD = ("Tahoma", 8, "bold")
 CMD_FONT     = ("Lucida Console", 9)
 
 def xp_title_bar(parent: tk.Widget, title: str, icon: str = ""):
-    """pretty blue bar"""
+
     bar = tk.Frame(parent, bg=XP_TITLEBAR, height=28)
     bar.pack(fill=tk.X)
     bar.pack_propagate(False)
@@ -2695,17 +2601,6 @@ def xp_title_bar(parent: tk.Widget, title: str, icon: str = ""):
     tk.Label(bar, text=lbl_text, bg=XP_TITLEBAR, fg=XP_HITEXT,
              font=("Tahoma", 9, "bold")).pack(side=tk.LEFT, padx=4, pady=4)
     return bar
-
-
-def xp_raised_frame(parent, **kw):
-    outer = tk.Frame(parent, bg=XP_FACE, bd=2, relief=tk.RAISED, **kw)
-    return outer
-
-
-def xp_sunken_frame(parent, **kw):
-    outer = tk.Frame(parent, bg=XP_WHITE, bd=2, relief=tk.SUNKEN, **kw)
-    return outer
-
 
 def xp_button(parent, text, command, width=None, **kw):
     btn = tk.Button(
@@ -2721,10 +2616,8 @@ def xp_button(parent, text, command, width=None, **kw):
         btn.config(width=width)
     return btn
 
-
 def xp_label(parent, text, fg=XP_TEXT, **kw):
     return tk.Label(parent, text=text, bg=XP_FACE, fg=fg, font=XP_FONT, **kw)
-
 
 def xp_checkbox(parent, text, variable, **kw):
     return tk.Checkbutton(
@@ -2736,7 +2629,6 @@ def xp_checkbox(parent, text, variable, **kw):
         font=XP_FONT,
         **kw,
     )
-
 
 def xp_separator(parent):
     return tk.Frame(parent, bg=XP_BORDER, height=1)
@@ -2800,8 +2692,6 @@ class LogWindow:
         self.text.tag_configure("error",   foreground=CMD_RED)
         self.text.tag_configure("info",    foreground=CMD_FG)
 
-
-
     def _tag_for(self, msg: str) -> str:
         if "[gateway]" in msg: return "gateway"
         if "[msg]"     in msg: return "msg"
@@ -2830,12 +2720,10 @@ class LogWindow:
         self.text.see(tk.END)
         self.text.configure(state=tk.DISABLED)
 
-
     def _clear(self) -> None:
         self.text.configure(state=tk.NORMAL)
         self.text.delete("1.0", tk.END)
         self.text.configure(state=tk.DISABLED)
-
 
     def show(self) -> None:
         self.win.deiconify()
@@ -2852,155 +2740,6 @@ class LogWindow:
         else:
             self.show()
 
-_queue_viewer_instance = None
-
-def _open_queue_viewer() -> None:
-    global _queue_viewer_instance
-    if _queue_viewer_instance and _queue_viewer_instance.alive:
-        _queue_viewer_instance.lift()
-        return
-    _queue_viewer_instance = QueueViewerWindow(_tk_root)
-
-
-class QueueViewerWindow:
-    """i think i aint using this anymore asdjgkasd
-    """
-
-    def __init__(self, root: tk.Tk) -> None:
-        self.root  = root
-        self.alive = True
-        self._items: list[_QueuedNotif] = []
-
-        self.win = tk.Toplevel(root)
-        self.win.title("Notifications")
-        self.win.configure(bg=XP_FACE)
-        self.win.protocol("WM_DELETE_WINDOW", self._on_close)
-        self.win.resizable(True, True)
-        self.win.minsize(400, 240)
-        _set_discord_icon_on_window(self.win)
-
-        self._build()
-        self._center(500, 380)
-        self._refresh()
-
-    def _center(self, w: int, h: int) -> None:
-        self.win.update_idletasks()
-        sw = self.win.winfo_screenwidth()
-        sh = self.win.winfo_screenheight()
-        self.win.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")
-
-    def lift(self) -> None:
-        self.win.deiconify()
-        self.win.lift()
-        self._refresh()
-
-    def _on_close(self) -> None:
-        self.alive = False
-        self.win.destroy()
-
-    def _build(self) -> None:
-        toolbar = tk.Frame(self.win, bg=XP_FACE, bd=1, relief=tk.FLAT)
-        toolbar.pack(fill=tk.X, padx=4, pady=(4, 0))
-
-        xp_button(toolbar, "Mark all as read", self._mark_all_read).pack(side=tk.LEFT, padx=4, pady=2)
-        xp_button(toolbar, "Clear all",        self._clear_all    ).pack(side=tk.LEFT, padx=2, pady=2)
-
-        xp_separator(self.win).pack(fill=tk.X, padx=4, pady=2)
-        frame = tk.Frame(self.win, bg=XP_BORDER, bd=1, relief=tk.SUNKEN)
-        frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=(0, 0))
-
-        self._listbox = tk.Listbox(
-            frame,
-            bg=XP_WHITE, fg=XP_TEXT,
-            font=("Tahoma", 8),
-            relief=tk.FLAT,
-            bd=0,
-            selectbackground=XP_HIGHLIGHT,
-            selectforeground=XP_HITEXT,
-            activestyle="none",
-        )
-        sb = tk.Scrollbar(frame, command=self._listbox.yview,
-                          bg=XP_FACE, troughcolor=XP_FACE_DARK, relief=tk.FLAT)
-        self._listbox.configure(yscrollcommand=sb.set)
-        sb.pack(side=tk.RIGHT, fill=tk.Y)
-        self._listbox.pack(fill=tk.BOTH, expand=True)
-        self._listbox.bind("<Double-Button-1>", self._on_double_click)
-
-        hint_bar = tk.Frame(self.win, bg=XP_FACE)
-        hint_bar.pack(fill=tk.X, padx=4, pady=(2, 4))
-        tk.Label(hint_bar,
-                 text="Double-click a notification to open it in Discord.",
-                 bg=XP_FACE, fg=XP_GREY_TXT, font=("Tahoma", 7),
-                 ).pack(side=tk.LEFT)
-        self._unread_lbl = tk.Label(hint_bar, text="",
-                                    bg=XP_FACE, fg=XP_TEXT, font=("Tahoma", 7, "bold"))
-        self._unread_lbl.pack(side=tk.RIGHT, padx=4)
-
-    def _refresh(self) -> None:
-        self._listbox.delete(0, tk.END)
-        with _notif_queue_lock:
-            items = list(reversed(_notif_queue))
-        self._items = items
-
-        if not items:
-            self._listbox.insert(tk.END, "  (no notifications)")
-            self._listbox.itemconfig(0, fg=XP_GREY_TXT)
-            self._unread_lbl.config(text="")
-            return
-
-        unread = 0
-        for n in items:
-            ts    = datetime.fromtimestamp(n.ts).strftime("%H:%M:%S")
-            mark  = "  " if n.read else "\u25cf " 
-            label = f" {mark}[{ts}]  {n.title}  \u2014  {n.body[:80]}"
-            self._listbox.insert(tk.END, label)
-            idx = self._listbox.size() - 1
-            if n.read:
-                self._listbox.itemconfig(idx, fg=XP_GREY_TXT)
-            else:
-                self._listbox.itemconfig(idx, fg=XP_TEXT)
-                unread += 1
-
-        unread_txt = f"{unread} unread" if unread else "All read"
-        self._unread_lbl.config(text=unread_txt)
-
-    def _on_double_click(self, _event) -> None:
-        sel = self._listbox.curselection()
-        if not sel:
-            return
-        idx = sel[0]
-        try:
-            notif = self._items[idx]
-        except IndexError:
-            return
-
-        with _notif_queue_lock:
-            notif.read = True
-
-        if notif.url:
-            try:
-                os.startfile(notif.url)
-            except Exception as e:
-                print(f"[queue] Failed to open {notif.url!r}: {e}")
-        else:
-            _open_client(notif.url if notif.url else None)
-
-        self._refresh()
-
-    def _mark_all_read(self) -> None:
-        """Mark every notification as read without removing them."""
-        with _notif_queue_lock:
-            for n in _notif_queue:
-                n.read = True
-        self._refresh()
-
-    def _clear_all(self) -> None:
-        """Remove all notifications from the queue."""
-        with _notif_queue_lock:
-            _notif_queue.clear()
-        self._refresh()
-
-
 _settings_win_instance = None
 
 def _open_settings_window() -> None:
@@ -3010,9 +2749,7 @@ def _open_settings_window() -> None:
         return
     _settings_win_instance = SettingsWindow(_tk_root)
 
-
 class SettingsWindow:
-    """Settings window"""
 
     def __init__(self, root: tk.Tk) -> None:
         self.root  = root
@@ -3028,7 +2765,12 @@ class SettingsWindow:
 
         self._cfg = load_config()
 
-        self._notif_var     = tk.StringVar(value=self._cfg.get("notification_mode", "all"))
+        self._notif_var       = tk.StringVar(value=self._cfg.get("notification_mode", "all"))
+        self._check_updates_var = tk.BooleanVar(value=bool(self._cfg.get("check_for_updates", True)))
+        self._auto_update_var = tk.BooleanVar(value=bool(self._cfg.get("auto_update", False)))
+        self._balloon_sound_var = tk.BooleanVar(value=bool(self._cfg.get("balloon_sound_mode", False)))
+        _exit_close = self._cfg.get("exit_close_client", None)
+        self._exit_close_var = tk.BooleanVar(value=(_exit_close is True))
         self._style_var     = tk.StringVar(value=self._cfg.get("notif_style", "instant"))
         self._cooldown_var  = tk.IntVar(value=int(self._cfg.get("replace_cooldown", 4.0)))
         self._cooldown_lbl  = tk.StringVar(value=f"{self._cooldown_var.get()}s")
@@ -3062,7 +2804,7 @@ class SettingsWindow:
         tab_bar = tk.Frame(self.win, bg=XP_FACE)
         tab_bar.pack(side=tk.TOP, fill=tk.X, padx=6, pady=(6, 0))
 
-        for i, lbl in enumerate([_t("tab_notif_mode"), _t("tab_notif_style"), _t("tab_sounds"), _t("tab_icons"), _t("tab_per_user")]):
+        for i, lbl in enumerate([_t("tab_notif_mode"), _t("tab_notif_style"), _t("tab_sounds"), _t("tab_icons"), _t("tab_per_user"), _t("tab_more")]):
             btn = tk.Button(
                 tab_bar, text=lbl, font=XP_FONT_BOLD,
                 bg=XP_FACE, fg=XP_TEXT,
@@ -3089,7 +2831,8 @@ class SettingsWindow:
                    self._build_style_page,
                    self._build_sounds_page,
                    self._build_tray_icons_page,
-                   self._build_per_user_sounds_page):
+                   self._build_per_user_sounds_page,
+                   self._build_more_page):
             page = tk.Frame(self._container, bg=XP_FACE)
             fn(page)
             self._pages.append(page)
@@ -3179,6 +2922,18 @@ class SettingsWindow:
                  bg=XP_FACE, fg=XP_TEXT, font=XP_FONT_BOLD, width=3,
                  ).pack(side=tk.LEFT)
         xp_label(row, _t("lbl_cooldown_note"), fg=XP_GREY_TXT).pack(side=tk.LEFT, padx=(8, 0))
+
+                                                                                
+        bsnd_grp = tk.LabelFrame(parent, text=_t("grp_balloon_sound"),
+                                 bg=XP_FACE, fg=XP_TEXT, font=XP_FONT_BOLD,
+                                 bd=2, relief=tk.GROOVE)
+        bsnd_grp.pack(fill=tk.X, padx=4, pady=(0, 8))
+        xp_checkbox(bsnd_grp, _t("chk_balloon_sound"), self._balloon_sound_var,
+                    ).pack(anchor=tk.W, padx=10, pady=(6, 2))
+        tk.Label(bsnd_grp, text=_t("chk_balloon_sound_desc"),
+                 bg=XP_FACE, fg=XP_GREY_TXT, font=("Tahoma", 7),
+                 justify=tk.LEFT, anchor=tk.W,
+                 ).pack(fill=tk.X, padx=28, pady=(0, 6))
 
     def _build_sounds_page(self, parent: tk.Frame) -> None:
         vol_grp = tk.LabelFrame(parent, text=_t("grp_volume"),
@@ -3278,7 +3033,7 @@ class SettingsWindow:
             self._pu_add_user(uid, sounds)
 
     def _pu_add_user(self, user_id: str = "", sounds: "dict | None" = None) -> None:
-        """Append a new user entry row to the per-user scroll area."""
+
         if sounds is None:
             sounds = {}
 
@@ -3448,6 +3203,58 @@ class SettingsWindow:
             _set_tray_icon_handle(hicon)
             print(f"[tray] Preview icon for '{state_key}': {os.path.basename(path)}")
 
+    def _build_more_page(self, parent: tk.Frame) -> None:
+                                                                                
+        exit_grp = tk.LabelFrame(parent, text=_t("grp_exit_settings"),
+                                 bg=XP_FACE, fg=XP_TEXT, font=XP_FONT_BOLD,
+                                 bd=2, relief=tk.GROOVE)
+        exit_grp.pack(fill=tk.X, padx=4, pady=(8, 4))
+
+        xp_checkbox(exit_grp, _t("exit_chk_close_discord"), self._exit_close_var,
+                    ).pack(anchor=tk.W, padx=10, pady=(6, 6))
+
+                                                                               
+        update_grp = tk.LabelFrame(parent, text=_t("grp_update"),
+                                   bg=XP_FACE, fg=XP_TEXT, font=XP_FONT_BOLD,
+                                   bd=2, relief=tk.GROOVE)
+        update_grp.pack(fill=tk.X, padx=4, pady=(8, 4))
+
+        xp_checkbox(update_grp, _t("chk_check_updates"), self._check_updates_var,
+                    ).pack(anchor=tk.W, padx=10, pady=(6, 2))
+        tk.Label(update_grp, text=_t("chk_check_updates_desc"),
+                 bg=XP_FACE, fg=XP_GREY_TXT, font=("Tahoma", 7),
+                 justify=tk.LEFT, anchor=tk.W,
+                 ).pack(fill=tk.X, padx=28, pady=(0, 4))
+
+        xp_checkbox(update_grp, _t("chk_auto_update"), self._auto_update_var,
+                    ).pack(anchor=tk.W, padx=10, pady=(2, 2))
+        tk.Label(update_grp, text=_t("chk_auto_update_desc"),
+                 bg=XP_FACE, fg=XP_GREY_TXT, font=("Tahoma", 7),
+                 justify=tk.LEFT, anchor=tk.W,
+                 ).pack(fill=tk.X, padx=28, pady=(0, 6))
+
+                                                                                
+        about_grp = tk.LabelFrame(parent, text=" About ",
+                                  bg=XP_FACE, fg=XP_TEXT, font=XP_FONT_BOLD,
+                                  bd=2, relief=tk.GROOVE)
+        about_grp.pack(fill=tk.X, padx=4, pady=(0, 8))
+
+        tk.Label(
+            about_grp,
+            text=f"Balloncord v{VERSION}",
+            bg=XP_FACE, fg=XP_TEXT,
+            font=("Tahoma", 10, "bold"),
+            anchor=tk.W,
+        ).pack(anchor=tk.W, padx=12, pady=(10, 0))
+
+        tk.Label(
+            about_grp,
+            text="Made by Mozaico",
+            bg=XP_FACE, fg=XP_GREY_TXT,
+            font=("Tahoma", 8),
+            anchor=tk.W,
+        ).pack(anchor=tk.W, padx=12, pady=(2, 10))
+
     def _save(self) -> None:
         cfg = load_config()
         cfg["notification_mode"] = self._notif_var.get()
@@ -3474,23 +3281,26 @@ class SettingsWindow:
                 per_user[uid] = sounds
         cfg["per_user_sounds"] = per_user
         cfg["auto_open_client"] = bool(getattr(self, "_auto_open_var", tk.BooleanVar()).get())
+        cfg["check_for_updates"] = bool(getattr(self, "_check_updates_var", tk.BooleanVar(value=True)).get())
+        cfg["auto_update"]      = bool(getattr(self, "_auto_update_var", tk.BooleanVar()).get())
+        cfg["balloon_sound_mode"] = bool(getattr(self, "_balloon_sound_var", tk.BooleanVar()).get())
+        if getattr(self, "_exit_close_var", tk.BooleanVar()).get():
+            cfg["exit_close_client"] = True
+        else:
+            cfg.pop("exit_close_client", None)
         save_config(cfg)
         _clear_sound_cache()  
         _clear_state_icon_cache()    
         _update_tray_icon_for_state() 
         print(f"[settings] Saved. mode={cfg['notification_mode']}, "
-              f"custom_sounds={len(cfg['custom_sounds'])}, "
-              f"tray_icons={len(cfg['tray_icons'])}, "
+
               f"per_user_sounds={len(cfg.get('per_user_sounds', {}))}")
 
     def _save_and_close(self) -> None:
         self._save()
         self._on_close()
 
-
-
 class LoginWindow:
-    """Login window to enter the Discord token."""
 
     def __init__(self, root: tk.Tk, on_login) -> None:
         self.root     = root
@@ -3522,7 +3332,7 @@ class LoginWindow:
         self.win.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")
 
     def _rebuild(self) -> None:
-        """Destroy all widgets and rebuild the window in the new language."""
+
         for w in self.win.winfo_children():
             w.destroy()
         self.win.title(_t("win_title"))
@@ -3655,6 +3465,16 @@ class LoginWindow:
         ).pack(anchor=tk.W, padx=8, pady=(4, 1))
 
         tk.Radiobutton(
+            grp_client, text=_t("radio_canary"),
+            variable=self.client_var, value="canary",
+            bg=XP_FACE, fg=XP_TEXT,
+            selectcolor=XP_WHITE,
+            activebackground=XP_FACE, activeforeground=XP_TEXT,
+            font=XP_FONT,
+            command=self._on_client_change,
+        ).pack(anchor=tk.W, padx=8, pady=(1, 1))
+
+        tk.Radiobutton(
             grp_client, text=_t("radio_dm"),
             variable=self.client_var, value="dm",
             bg=XP_FACE, fg=XP_TEXT,
@@ -3740,7 +3560,7 @@ class LoginWindow:
         self.on_login(token)
 
     def _apply_startup(self, enable: bool) -> None:
-        """Add or remove the app from Windows startup via the registry."""
+
         try:
             import winreg
             key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
@@ -3763,10 +3583,135 @@ class LoginWindow:
         except Exception:
             pass
 
+def _launch_updater_download(version: str, url: str) -> None:
+
+    base       = _get_base_dir()
+    candidates = [
+        os.path.join(base, "BalloncordUpdater.exe"),
+        os.path.join(base, "updater.exe"),
+    ]
+    for exe in candidates:
+        if os.path.isfile(exe):
+            try:
+                subprocess.Popen(
+                    [exe, "--download", version, url],
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    close_fds=True,
+                )
+                print(f"[updater] Launched {os.path.basename(exe)} --download {version}")
+            except Exception as e:
+                print(f"[updater] Failed to launch updater for download: {e}")
+            return
+              
+    py_path = os.path.join(base, "updater.py")
+    if os.path.isfile(py_path):
+        try:
+            subprocess.Popen(
+                [sys.executable, py_path, "--download", version, url],
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                close_fds=True,
+            )
+            print(f"[updater] Launched updater.py --download {version} (dev mode)")
+        except Exception as e:
+            print(f"[updater] Failed to launch updater.py: {e}")
+
+def _launch_updater() -> None:
+
+    cfg = load_config()
+    if not cfg.get("check_for_updates", True):
+        print("[updater] Check for updates is disabled. Skipping.")
+        return
+
+    base       = _get_base_dir()
+    candidates = [
+        os.path.join(base, "BalloncordUpdater.exe"),
+        os.path.join(base, "updater.exe"),
+    ]
+    for exe in candidates:
+        if os.path.isfile(exe):
+            try:
+                subprocess.Popen(
+                    [exe],
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    close_fds=True,
+                )
+                print(f"[updater] Launched {os.path.basename(exe)}")
+            except Exception as e:
+                print(f"[updater] Failed to launch updater: {e}")
+            return
+                                                            
+    py_path = os.path.join(base, "updater.py")
+    if os.path.isfile(py_path):
+        try:
+            subprocess.Popen(
+                [sys.executable, py_path],
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                close_fds=True,
+            )
+            print("[updater] Launched updater.py (dev mode)")
+        except Exception as e:
+            print(f"[updater] Failed to launch updater.py: {e}")
+
+def _poll_update_flag() -> None:
+
+    import time
+    time.sleep(6)                                                     
+
+    flag_path = os.path.join(_get_base_dir(), "_balloncord_update.json")
+    try:
+        with open(flag_path, encoding="utf-8") as f:
+            info = json.load(f)
+        os.remove(flag_path)
+    except FileNotFoundError:
+        return                      
+    except Exception as e:
+        print(f"[updater] Could not read flag file: {e}")
+        return
+
+    global _pending_update_info
+
+    ver          = info.get("version", "?")
+    ready        = info.get("ready", False)
+    download_url = info.get("download_url", "")
+
+    if ready:
+                                                                     
+        _raw_show_balloon(
+            "Balloncord \u2014 Update ready",
+            f"v{ver} downloaded. Restart Balloncord to apply.",
+            None,
+        )
+        print(f"[updater] Showed 'restart to apply' balloon for v{ver}")
+    else:
+                                                                                     
+        _pending_update_info = {"version": ver, "download_url": download_url}
+        _raw_show_balloon(
+            "Balloncord \u2014 Update available",
+            f"A new version (v{ver}) is available. Click to download now.",
+            None,                                                              
+        )
+        print(f"[updater] Showed 'update available' balloon for v{ver}")
+
+def _ensure_version_file() -> None:
+
+    path = os.path.join(_get_base_dir(), "version.txt")
+    try:
+        existing = open(path, encoding="utf-8").read().strip().lstrip("v")
+    except Exception:
+        existing = ""
+    if existing != VERSION:
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(VERSION)
+            print(f"[app] version.txt written: {VERSION}")
+        except Exception as e:
+            print(f"[app] Could not write version.txt: {e}")
 
 def main() -> None:
     global _tk_root, _log_win
+    _ensure_version_file()                                                         
     _register_sound_event()
+    _launch_updater()                                           
     root = tk.Tk()
     root.withdraw()
     _tk_root = root
@@ -3774,6 +3719,9 @@ def main() -> None:
     tray_thread = threading.Thread(target=_message_loop, daemon=True)
     tray_thread.start()
     _tray_ready.wait()
+
+                                                                
+    threading.Thread(target=_poll_update_flag, daemon=True).start()
 
     def on_login(token: str) -> None:
         print("[app] Starting gateway...")
@@ -3786,7 +3734,6 @@ def main() -> None:
     LoginWindow(root, on_login)
 
     root.mainloop()
-
 
 if __name__ == "__main__":
     main()
