@@ -117,7 +117,7 @@ DISCORD_API = "https://discord.com/api/v9"
 GATEWAY_URL = "wss://gateway.discord.gg/?v=9&encoding=json&compress=zlib-stream"
 
                                                                            
-VERSION = "1.1.1"
+VERSION = "1.1.2"
 
 DND_STATUSES   = {"dnd"}
 
