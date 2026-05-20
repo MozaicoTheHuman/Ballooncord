@@ -15,10 +15,10 @@ REPO_OWNER   = "MozaicoTheHuman"
 REPO_NAME    = "Ballooncord"
 API_URL      = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases/latest"
 EXE_NAME     = "Ballooncord.exe"
-UPDATE_EXE   = "Balloncord_Update.exe"
+UPDATE_EXE   = "Ballooncord_Update.exe"
 VERSION_FILE = "version.txt"
 CONFIG_FILE  = "discord_balloon_config.json"
-FLAG_FILE    = "_balloncord_update.json"
+FLAG_FILE    = "_Ballooncord_update.json"
 
 XP_FACE      = "#ECE9D8"
 XP_FACE_DARK = "#D4D0C8"
@@ -80,7 +80,7 @@ def _fetch_latest_release() -> tuple[str, str | None] | None:
     try:
         req = urllib.request.Request(
             API_URL,
-            headers={"User-Agent": "BalloncordUpdater/1.0"},
+            headers={"User-Agent": "BallooncordUpdater/1.0"},
         )
         with urllib.request.urlopen(req, timeout=10) as r:
             data = json.load(r)
@@ -143,7 +143,7 @@ class UpdaterWindow:
         self._cancel_ev   = threading.Event()
 
         self.root = tk.Tk()
-        self.root.title("Balloncord Updater")
+        self.root.title("Ballooncord Updater")
         self.root.configure(bg=XP_FACE)
         self.root.resizable(False, False)
         self.root.protocol("WM_DELETE_WINDOW", self._on_cancel)
@@ -161,7 +161,7 @@ class UpdaterWindow:
         title_bar.pack(fill=tk.X)
         title_bar.pack_propagate(False)
         tk.Label(
-            title_bar, text="Balloncord Updater",
+            title_bar, text="Ballooncord Updater",
             bg=XP_BLUE, fg=XP_WHITE, font=XP_FONT_BOLD,
         ).pack(side=tk.LEFT, padx=8, pady=4)
 
@@ -169,7 +169,7 @@ class UpdaterWindow:
         body.pack(fill=tk.BOTH, expand=True)
 
         self.status_var = tk.StringVar(
-            value=f"Downloading Balloncord v{self.version}..."
+            value=f"Downloading Ballooncord v{self.version}..."
         )
         tk.Label(
             body, textvariable=self.status_var,
@@ -243,7 +243,7 @@ class UpdaterWindow:
         try:
             req = urllib.request.Request(
                 self.download_url,
-                headers={"User-Agent": "BalloncordUpdater/1.0"},
+                headers={"User-Agent": "BallooncordUpdater/1.0"},
             )
             with urllib.request.urlopen(req, timeout=120) as r:
                 total      = int(r.headers.get("Content-Length", 0))
@@ -304,7 +304,7 @@ class UpdaterWindow:
             pass
 
         self.status_var.set(
-            f"Done! Launching Balloncord v{self.version}..."
+            f"Done! Launching Ballooncord v{self.version}..."
         )
         self.root.after(900, lambda: self._launch_and_exit(original))
 

@@ -117,7 +117,7 @@ DISCORD_API = "https://discord.com/api/v9"
 GATEWAY_URL = "wss://gateway.discord.gg/?v=9&encoding=json&compress=zlib-stream"
 
                                                                            
-VERSION = "1.1.2"
+VERSION = "1.1.3"
 
 DND_STATUSES   = {"dnd"}
 
@@ -684,13 +684,13 @@ _STRINGS_EN_BUILTIN: dict[str, str] = {
                  
     "grp_update":              " Updates ",
     "chk_check_updates":       "Check for updates on startup",
-    "chk_check_updates_desc":  "Check GitHub for a new version when Balloncord starts.",
-    "chk_auto_update":         "Auto-update Balloncord",
+    "chk_check_updates_desc":  "Check GitHub for a new version when Ballooncord starts.",
+    "chk_auto_update":         "Auto-update Ballooncord",
     "chk_auto_update_desc":    "Automatically download and install new versions on startup (requires Check for updates).",
-    "balloon_update_title":    "Balloncord \u2014 Update available",
+    "balloon_update_title":    "Ballooncord \u2014 Update available",
     "balloon_update_body":     "A new version ({ver}) is available. Click to download now.",
-    "balloon_updated_title":   "Balloncord \u2014 Update ready",
-    "balloon_updated_body":    "v{ver} downloaded. Restart Balloncord to apply.",
+    "balloon_updated_title":   "Ballooncord \u2014 Update ready",
+    "balloon_updated_body":    "v{ver} downloaded. Restart Ballooncord to apply.",
 
                  
     "exit_dlg_title":      "Exit",
@@ -1947,14 +1947,17 @@ def _parse_muted(guild_settings: list) -> tuple[set[str], set[str]]:
 
 async def _get_channel_info(http, token: str,
                              guild_id: str | None,
-                             channel_id: str | None) -> tuple[str, str]:
+                             channel_id: str | None) -> tuple[str, str, int]:
     channel_name = guild_name = ""
+    channel_type = -1
     try:
         if channel_id:
             async with http.get(f"{DISCORD_API}/channels/{channel_id}",
                                 headers={"Authorization": token}) as r:
                 if r.status == 200:
-                    channel_name = (await r.json()).get("name", "")
+                    ch_data      = await r.json()
+                    channel_name = ch_data.get("name", "")
+                    channel_type = ch_data.get("type", -1)
         if guild_id:
             async with http.get(f"{DISCORD_API}/guilds/{guild_id}",
                                 headers={"Authorization": token}) as r:
@@ -1962,7 +1965,7 @@ async def _get_channel_info(http, token: str,
                     guild_name = (await r.json()).get("name", "")
     except Exception:
         pass
-    return channel_name, guild_name
+    return channel_name, guild_name, channel_type
 
 async def _get_nick(http, token: str, guild_id: str | None, author: dict) -> str:
     user_id = author.get("id", "")
@@ -2068,7 +2071,7 @@ async def run_gateway(token: str) -> None:
         buffer          = bytearray()
         my_user_id:     str | None = None
         heartbeat_task: asyncio.Task | None = None
-        channel_cache:  dict[str, tuple[str, str]] = {}
+        channel_cache:  dict[str, tuple[str, str, int]] = {}
         nick_cache:     dict[tuple, str] = {}
 
         ack_times:      dict[str, float] = {}
@@ -2129,10 +2132,18 @@ async def run_gateway(token: str) -> None:
                             },
                         }))
 
+                    _hb_ack_received = True  # start as True so first beat doesn't fail
+
                     async def heartbeat():
-                        nonlocal sequence
+                        nonlocal sequence, _hb_ack_received
                         while True:
                             await asyncio.sleep(heartbeat_interval)
+                            if not _hb_ack_received:
+                                # Discord didn't ACK our last heartbeat — connection is dead
+                                print("[gateway] Heartbeat ACK not received — closing dead connection.")
+                                await ws.close(code=4000)
+                                return
+                            _hb_ack_received = False
                             await ws.send(json.dumps({"op": 1, "d": sequence}))
 
                     heartbeat_task = asyncio.create_task(heartbeat())
@@ -2156,6 +2167,11 @@ async def run_gateway(token: str) -> None:
                         op = event.get("op")
                         t  = event.get("t")
                         d  = event.get("d") or {}
+
+                        if op == 11:
+                            # Heartbeat ACK — connection is alive
+                            _hb_ack_received = True
+                            continue
 
                         if op == 7:
                             print("[gateway] Reconnect requested.")
@@ -2585,19 +2601,32 @@ async def run_gateway(token: str) -> None:
                         name = nick_cache[nick_key]
                         is_reply = bool(d.get("referenced_message"))
 
+                        # --- Filter text-in-voice channels ---
+                        # Discord channel types: 2 = GuildVoice, 13 = GuildStageVoice
+                        # Text messages sent inside a VC should only notify if you are
+                        # currently connected to that specific voice channel.
+                        if guild_id and channel_id in channel_cache:
+                            _ch_name, _gn, _ch_type = channel_cache[channel_id]
+                        else:
+                            _ch_type = -1
+                        _VC_TEXT_TYPES = {2, 13}
+                        if _ch_type in _VC_TEXT_TYPES and channel_id != _vc_channel_id:
+                            print(f"[msg] Skipping text-in-VC message (channel {channel_id}, not in that VC)")
+                            continue
+
                         notif_style = load_config().get("notif_style", "instant")
                         if notif_style == "queue":
 
                             verb = " replied" if is_reply else " wrote"
                             if guild_id:
-                                channel_name, guild_name = channel_cache[channel_id]
+                                channel_name, guild_name, _ = channel_cache[channel_id]
                                 in_part = f" in #{channel_name}" if channel_name else ""
                                 title = f"{name}{verb}{in_part}"
                             else:
                                 title = f"{name}{verb}"
                         else:
                             if guild_id:
-                                channel_name, guild_name = channel_cache[channel_id]
+                                channel_name, guild_name, _ = channel_cache[channel_id]
                                 ctx   = []
                                 if channel_name: ctx.append(f"#{channel_name}")
                                 if guild_name:   ctx.append(guild_name)
@@ -2644,6 +2673,8 @@ async def run_gateway(token: str) -> None:
             if heartbeat_task:
                 heartbeat_task.cancel()
 
+        # Show reconnecting balloon so the user knows what's happening
+        _raw_show_balloon("Ballooncord", "Reconnecting...", suppress_sound=True)
         print("[gateway] Retrying in 5 seconds...")
         await asyncio.sleep(5)
 
@@ -3318,7 +3349,7 @@ class SettingsWindow:
 
         tk.Label(
             about_grp,
-            text=f"Balloncord v{VERSION}",
+            text=f"Ballooncord v{VERSION}",
             bg=XP_FACE, fg=XP_TEXT,
             font=("Tahoma", 10, "bold"),
             anchor=tk.W,
@@ -3664,7 +3695,7 @@ def _launch_updater_download(version: str, url: str) -> None:
 
     base       = _get_base_dir()
     candidates = [
-        os.path.join(base, "BalloncordUpdater.exe"),
+        os.path.join(base, "BallooncordUpdater.exe"),
         os.path.join(base, "updater.exe"),
     ]
     for exe in candidates:
@@ -3706,7 +3737,7 @@ def _launch_updater() -> None:
 
     base       = _get_base_dir()
     candidates = [
-        os.path.join(base, "BalloncordUpdater.exe"),
+        os.path.join(base, "BallooncordUpdater.exe"),
         os.path.join(base, "updater.exe"),
     ]
     for exe in candidates:
@@ -3739,7 +3770,7 @@ def _poll_update_flag() -> None:
     import time
     time.sleep(6)                                                     
 
-    flag_path = os.path.join(_get_base_dir(), "_balloncord_update.json")
+    flag_path = os.path.join(_get_base_dir(), "_Ballooncord_update.json")
     try:
         with open(flag_path, encoding="utf-8") as f:
             info = json.load(f)
@@ -3759,8 +3790,8 @@ def _poll_update_flag() -> None:
     if ready:
                                                                      
         _raw_show_balloon(
-            "Balloncord \u2014 Update ready",
-            f"v{ver} downloaded. Restart Balloncord to apply.",
+            "Ballooncord \u2014 Update ready",
+            f"v{ver} downloaded. Restart Ballooncord to apply.",
             None,
         )
         print(f"[updater] Showed 'restart to apply' balloon for v{ver}")
@@ -3768,7 +3799,7 @@ def _poll_update_flag() -> None:
                                                                                      
         _pending_update_info = {"version": ver, "download_url": download_url}
         _raw_show_balloon(
-            "Balloncord \u2014 Update available",
+            "Ballooncord \u2014 Update available",
             f"A new version (v{ver}) is available. Click to download now.",
             None,                                                              
         )
