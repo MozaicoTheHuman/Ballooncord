@@ -142,5 +142,17 @@
   "anim_normal": "Normal",
   "anim_slow": "Lenta",
   "anim_very_slow": "Muy lenta",
-  "lbl_anim_speed": "Velocidad:"
+  "lbl_anim_speed": "Velocidad:",
+
+  "ext_ha_dicho": " ha dicho",
+  "ext_time_1min": "hace aproximadamente 1 minuto",
+  "ext_time_Nmin": "hace aproximadamente {n} minutos",
+  "ext_opciones": "Opciones",
+
+  "radio_normal_label": "Normal  (foto + mensaje)",
+  "radio_normal_desc": "Estilo clásico: avatar a la izquierda, texto del mensaje a la derecha.",
+  "radio_extended_label": "Extendido  (estilo Yahoo Messenger)",
+  "radio_extended_desc": "Estilo Yahoo Messenger: \"[Nombre] ha dicho \u201cmsg\u201d\", marca de tiempo y botón Opciones en el toast superior.",
+  "radio_compact_label": "Compacto  (ícono pequeño + mensaje)",
+  "radio_compact_desc": "Estilo Yahoo 2009: la foto se reemplaza por un ícono pequeño,\nmenos espacio vertical, más mensajes en pantalla a la vez."
 }

@@ -454,8 +454,8 @@ MF_POPUP     = 0x10
 DISCORD_API = "https://discord.com/api/v9"
 GATEWAY_URL = "wss://gateway.discord.gg/?v=9&encoding=json&compress=zlib-stream"
 
-                                                                           
-VERSION = "1.2.0"
+
+VERSION = "1.2.1"
 
 DND_STATUSES   = {"dnd"}
 
@@ -589,11 +589,31 @@ _pending_update_info: "dict | None" = None
 
 YAHOO_TOAST_W: int = 280
 YAHOO_TOAST_H: int = 72
+YAHOO_TOAST_H_EXTENDED: int = 95
 YAHOO_MAX_STACK: int = 4
 YAHOO_GAP: int = 0
 _yahoo_toasts: list = []
 _yahoo_lock: threading.Lock = threading.Lock()
-                                                
+
+
+
+
+
+_ext_name_font_cache = None
+
+def _get_ext_name_font():
+    global _ext_name_font_cache
+    if _ext_name_font_cache is None:
+        try:
+            from tkinter import font as _tkfont
+            _ext_name_font_cache = _tkfont.Font(family="Tahoma", size=8, weight="bold", underline=True)
+        except Exception:
+            _ext_name_font_cache = ("Tahoma", 8, "bold")
+    return _ext_name_font_cache
+
+_yahoo_last_channel_id: "str | None" = None
+_yahoo_last_is_guild: bool = False
+
 
 _SOUND_APP_KEY   = "DiscordBalloonNotifier"
 
@@ -962,6 +982,15 @@ def save_config(data: dict) -> None:
 
 _log_queue: queue.Queue = queue.Queue()
 
+
+import builtins as _builtins
+_log_file_path: str = os.path.join(_get_base_dir(), "ballooncord_log.txt")
+try:
+    _log_file = open(_log_file_path, "a", encoding="utf-8", buffering=1)
+    _log_file.write(f"\n{'='*60}\n[session start: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]\n{'='*60}\n")
+except Exception:
+    _log_file = None
+
 import builtins
 _real_print = builtins.print
 
@@ -970,6 +999,12 @@ def _intercepted_print(*args, sep=" ", end="\n", **kwargs):
     if _token and _token in msg:
         msg = msg.replace(_token, "[TOKEN]")
     _log_queue.put(msg)
+    if _log_file:
+        try:
+            ts = datetime.now().strftime("%H:%M:%S")
+            _log_file.write(f"{ts}  {msg}\n")
+        except Exception:
+            pass
     try:
         _real_print(*args, sep=sep, end=end, **kwargs)
     except Exception:
@@ -1014,7 +1049,7 @@ _STRINGS_EN_BUILTIN: dict[str, str] = {
     "radio_dm":            "Discord Messenger",
     "lbl_dm_path":         "Path to DiscordMessenger.exe:",
     "btn_browse":          "Browse\u2026",
-                       
+
     "menu_voice_header":   "Voice channel",
     "menu_leave_call":     "  \u260e Leave Call",
     "menu_status":         "Status",
@@ -1065,16 +1100,16 @@ _STRINGS_EN_BUILTIN: dict[str, str] = {
     "icons_hint":          "Choose a PNG or ICO icon for each tray state (16\u00d716 or 32\u00d732 recommended).\nLeave blank to keep the default Discord icon for that state.",
     "grp_icons":           " Icons by State ",
 
-                        
+
     "grp_balloon_sound":      " Balloon Sound Mode ",
     "chk_balloon_sound":      "Use Windows balloon sound (all modes)",
     "chk_balloon_sound_desc": "Play sounds via the Windows notification system instead of pygame.\nThis is how Queue mode works — the OS plays the sound as the balloon appears.\nWhen enabled, per-user and pygame volume controls are bypassed for message sounds.",
 
-                   
+
     "grp_exit_settings":   " On Exit ",
     "exit_chk_close_discord": "Close Discord on exit",
 
-                 
+
     "grp_update":              " Updates ",
     "chk_check_updates":       "Check for updates on startup",
     "chk_check_updates_desc":  "Check GitHub for a new version when Ballooncord starts.",
@@ -1085,12 +1120,24 @@ _STRINGS_EN_BUILTIN: dict[str, str] = {
     "balloon_updated_title":   "Ballooncord \u2014 Update ready",
     "balloon_updated_body":    "v{ver} downloaded. Restart Ballooncord to apply.",
 
-                 
+
     "exit_dlg_title":      "Exit",
     "exit_dlg_msg":        "Exit the Discord Balloon Notifier?",
     "exit_chk_also_close": "Also close Discord",
     "exit_chk_remember":   "Don't ask again",
     "exit_btn_exit":       "Exit",
+
+    "ext_ha_dicho":        " said",
+    "ext_time_1min":       "about a minute ago",
+    "ext_time_Nmin":       "about {n} minutes ago",
+    "ext_opciones":        "Options",
+
+    "radio_normal_label":  "Normal  (pfp + message)",
+    "radio_normal_desc":   "Classic style: avatar on the left, message text on the right.",
+    "radio_extended_label":"Extended  (Yahoo Messenger style)",
+    "radio_extended_desc": 'Yahoo Messenger style: "[Name] said \u201cmsg\u201d", timestamp, and Options button on the top toast.',
+    "radio_compact_label": "Compact  (small icon + message)",
+    "radio_compact_desc":  "Yahoo 2009 style: pfp replaced by a tiny type icon,\nless vertical space, more messages on screen at once.",
 }
 
 _lang_cache: dict[str, dict] = {}
@@ -1446,6 +1493,10 @@ def _get_user_titlebar_tex(user_id: str) -> dict:
             result[key] = path
     return result
 
+def _has_per_user_skin(user_id: str) -> bool:
+    """Return True if this user has at least one titlebar texture configured."""
+    return bool(_get_user_titlebar_tex(user_id))
+
 def _get_active_titlebar_tex(author_id: str) -> dict:
     tex = _get_user_titlebar_tex(author_id)
     if tex:
@@ -1476,7 +1527,9 @@ class YahooToast:
                  titlebar_end: "str | None" = None,
                  author_id: str = "",
                  compact_mode: bool = False,
-                 compact_icons: "dict | None" = None) -> None:
+                 extended_mode: bool = False,
+                 compact_icons: "dict | None" = None,
+                 show_titlebar: bool = True) -> None:
         self.title = title
         self.body = body
         self.url = url
@@ -1490,9 +1543,22 @@ class YahooToast:
         self.titlebar_end = titlebar_end
         self.author_id = author_id
         self.compact_mode = compact_mode
+        self.extended_mode = extended_mode
         self.compact_icons = compact_icons or {}
+        self.show_titlebar = show_titlebar
         self.toast_w = YAHOO_TOAST_W
-        self.toast_h = 52 if compact_mode else YAHOO_TOAST_H
+        if compact_mode:
+            self.toast_h = 52
+        elif extended_mode:
+            self.toast_h = YAHOO_TOAST_H_EXTENDED
+        else:
+            self.toast_h = YAHOO_TOAST_H
+        self._titlebar_frame: "tk.Frame | None" = None
+        self._body_border_frame: "tk.Frame | None" = None
+        self._opciones_btn_frame: "tk.Frame | None" = None
+        self._time_label: "tk.Label | None" = None
+        self._time_after_id = None
+        self._created_at: float = time.time()
         self.win: tk.Toplevel | None = None
         self._timer: threading.Timer | None = None
         self._after_ids: list = []
@@ -1525,12 +1591,80 @@ class YahooToast:
         except Exception as e:
             print(f"[toast] Click handler error: {e}")
 
+    def set_titlebar_visible(self, visible: bool) -> None:
+        """Show or hide the titlebar, adjusting toast height accordingly."""
+        if not self.win or self._closed:
+            return
+        _full_h  = 52 if self.compact_mode else (YAHOO_TOAST_H_EXTENDED if self.extended_mode else YAHOO_TOAST_H)
+        _short_h = _full_h - 28
+        try:
+            if visible and not self.show_titlebar:
+                self.show_titlebar = True
+                if self._titlebar_frame:
+                    self._titlebar_frame.pack(fill=tk.X, side=tk.TOP, before=self._body_border_frame)
+                self.toast_h = _full_h
+                self.win.geometry(f"{self.toast_w}x{self.toast_h}+{self._final_x}+{self._final_y}")
+                if _tk_root:
+                    _tk_root.after(0, _reposition_yahoo_toasts)
+            elif not visible and self.show_titlebar:
+                self.show_titlebar = False
+                if self._titlebar_frame:
+                    self._titlebar_frame.pack_forget()
+                self.toast_h = _short_h
+                self.win.geometry(f"{self.toast_w}x{self.toast_h}+{self._final_x}+{self._final_y}")
+                if _tk_root:
+                    _tk_root.after(0, _reposition_yahoo_toasts)
+        except Exception as e:
+            print(f"[toast] set_titlebar_visible error: {e}")
+
+    def set_opciones_visible(self, visible: bool) -> None:
+        """Show or hide the Opciones button (extended mode only, top toast)."""
+        if not self.extended_mode or not self.win or self._closed:
+            return
+        try:
+            if self._opciones_btn_frame:
+                if visible:
+                    self._opciones_btn_frame.pack(side=tk.RIGHT, padx=(0, 8), pady=(0, 4))
+                else:
+                    self._opciones_btn_frame.pack_forget()
+        except Exception as e:
+            print(f"[toast] set_opciones_visible error: {e}")
+
+    def _update_time_label(self) -> None:
+        if self._closed or not self.win or not self._time_label:
+            return
+        try:
+            elapsed_min = max(0, int((time.time() - self._created_at) / 60))
+            if elapsed_min <= 1:
+                txt = _t("ext_time_1min")
+            else:
+                txt = _t("ext_time_Nmin").format(n=elapsed_min)
+            self._time_label.config(text=txt)
+            self._time_after_id = self.win.after(30000, self._update_time_label)
+        except Exception:
+            pass
+
+    def close_group(self, animate: bool = True) -> None:
+        """Close all toasts belonging to the same channel_id group."""
+        if self.channel_id:
+            with _yahoo_lock:
+                same_channel = [t for t in _yahoo_toasts if t.channel_id == self.channel_id]
+            for t in same_channel:
+                t.close(animate=animate)
+        else:
+            self.close(animate=animate)
+
     def close(self, animate: bool = True) -> None:
         if self._closed:
             return
         self._closed = True
         if self._timer:
             self._timer.cancel()
+        if self._time_after_id and self.win:
+            try:
+                self.win.after_cancel(self._time_after_id)
+            except Exception:
+                pass
         for aid in self._after_ids:
             try:
                 self.win.after_cancel(aid)
@@ -1565,7 +1699,7 @@ class YahooToast:
                     pass
             _remove_yahoo_toast(self)
 
-    def build(self, index: int) -> None:
+    def build(self, index: int, is_first_toast: bool = True) -> None:
         self.win = tk.Toplevel(_tk_root)
         self.win.overrideredirect(True)
         self.win.attributes("-topmost", True)
@@ -1576,8 +1710,10 @@ class YahooToast:
         outer.pack(fill=tk.BOTH, expand=True)
 
         title_bar = tk.Frame(outer, height=28, bd=0, highlightthickness=0, bg="#808080")
-        title_bar.pack(fill=tk.X, side=tk.TOP)
+        if self.show_titlebar:
+            title_bar.pack(fill=tk.X, side=tk.TOP)
         title_bar.pack_propagate(False)
+        self._titlebar_frame = title_bar
 
         title_canvas = tk.Canvas(title_bar, highlightthickness=0, bd=0, height=28, bg="#808080")
         title_canvas.pack(fill=tk.BOTH, expand=True)
@@ -1645,7 +1781,7 @@ class YahooToast:
                 )
                 close_lbl.image = close_photo
                 close_lbl.place(x=YAHOO_TOAST_W - 24, y=4, width=19, height=19)
-                close_lbl.bind("<Button-1>", lambda _e: self.close())
+                close_lbl.bind("<Button-1>", lambda _e: self.close_group())
         elif not use_tex:
 
             t_btn = 7 / 27
@@ -1656,7 +1792,7 @@ class YahooToast:
             close_btn = tk.Button(
                 title_bar,
                 text="×",
-                command=lambda: self.close(),
+                command=lambda: self.close_group(),
                 bg=btn_bg,
                 fg="#222222",
                 activebackground=btn_bg,
@@ -1678,7 +1814,7 @@ class YahooToast:
                 font=("Tahoma", 9, "bold")
             )
             title_canvas.tag_bind(close_id, "<Button-1>",
-                                  lambda _e: self.close())
+                                  lambda _e: self.close_group())
 
         _border_col = (
             _get_user_body_border(getattr(self, "author_id", ""))
@@ -1686,6 +1822,16 @@ class YahooToast:
         )
         body_border = tk.Frame(outer, bg=_border_col, bd=0)
         body_border.pack(fill=tk.BOTH, expand=True)
+        self._body_border_frame = body_border
+
+
+        if not self.show_titlebar:
+            if self.compact_mode:
+                self.toast_h = 52 - 28
+            elif self.extended_mode:
+                self.toast_h = YAHOO_TOAST_H_EXTENDED - 28
+            else:
+                self.toast_h = YAHOO_TOAST_H - 28
 
         body_frm = tk.Frame(body_border, bg="#E8E4E0")
         body_frm.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
@@ -1739,6 +1885,93 @@ class YahooToast:
                      wraplength=230)
             msg_lbl.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 4), pady=2)
             msg_lbl.bind("<Button-1>", self._on_click)
+        elif self.extended_mode:
+
+            _WIN_LINK_BLUE = "#0066CC"  
+            _GREY_TXT      = "#5F5F60"
+            _ext_name = (self.author_name or "?")[:40]
+            _ext_body = self.body[:80]
+            img32 = None
+            if self.avatar_path and os.path.exists(self.avatar_path):
+                try:
+                    img = tk.PhotoImage(file=self.avatar_path)
+                    factor = max(1, img.width() // 32)
+                    img32 = img.subsample(factor, factor)
+                except Exception:
+                    pass
+            if img32:
+                av_lbl = tk.Label(body_frm, image=img32, bg="#E8E4E0")
+                av_lbl.image = img32
+            else:
+                av_lbl = tk.Label(body_frm, text="☺", bg="#E8E4E0", fg="#5A3E8C",
+                                  font=("Tahoma", 20))
+            av_lbl.pack(side=tk.LEFT, padx=6, pady=4)
+            av_lbl.bind("<Button-1>", self._on_click)
+            right = tk.Frame(body_frm, bg="#E8E4E0")
+            right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=4, padx=(0, 4))
+            line1 = tk.Frame(right, bg="#E8E4E0")
+            line1.pack(fill=tk.X)
+
+            name_lbl = tk.Label(
+                line1, text=_ext_name,
+                bg="#E8E4E0", fg=_WIN_LINK_BLUE,
+                font=("Tahoma", 8),
+                cursor="hand2", anchor=tk.W,
+            )
+            name_lbl.pack(side=tk.LEFT)
+
+            def _open_profile(e=None, aid=self.author_id):
+                self.close_group(animate=True)
+                if aid:
+                    try:
+                        os.startfile(f"discord://-/users/{aid}")
+                    except Exception as ex:
+                        print(f"[ext] open profile error: {ex}")
+            name_lbl.bind("<Button-1>", _open_profile)
+
+            tk.Label(
+                line1, text=_t("ext_ha_dicho"),
+                bg="#E8E4E0", fg=_GREY_TXT,
+                font=("Tahoma", 8), anchor=tk.W,
+            ).pack(side=tk.LEFT)
+
+            tk.Label(
+                right,
+                text=f'\u201c{_ext_body}\u201d',
+                bg="#E8E4E0", fg=_GREY_TXT,
+                font=("Tahoma", 8),
+                anchor=tk.W,
+                wraplength=YAHOO_TOAST_W - 60,
+                justify=tk.LEFT,
+            ).pack(fill=tk.X)
+
+            bottom = tk.Frame(right, bg="#E8E4E0")
+            bottom.pack(fill=tk.X, pady=(2, 0))
+
+            self._time_label = tk.Label(
+                bottom,
+                text=_t("ext_time_1min"),
+                bg="#E8E4E0", fg=_GREY_TXT,
+                font=("Tahoma", 7),
+                anchor=tk.W,
+            )
+            self._time_label.pack(side=tk.LEFT)
+
+            self._opciones_btn_frame = tk.Frame(bottom, bg="#E8E4E0")
+            self._opciones_btn_frame.pack(side=tk.RIGHT)
+            tk.Button(
+                self._opciones_btn_frame,
+                text=_t("ext_opciones"),
+                command=lambda: (self.close_group(animate=True),
+                                 _tk_root.after(0, _open_settings_window)) if _tk_root else None,
+                bg="#E8E4E0", fg=_WIN_LINK_BLUE,
+                activebackground="#E8E4E0", activeforeground=_WIN_LINK_BLUE,
+                font=("Tahoma", 8), relief=tk.FLAT,
+                bd=0, highlightthickness=0,
+                cursor="hand2",
+            ).pack()
+
+            self._update_time_label()
         else:
             img32 = None
             if self.avatar_path and os.path.exists(self.avatar_path):
@@ -1802,7 +2035,12 @@ class YahooToast:
         _y_offset = int(load_config().get("toast_y_offset", 0))
         self._final_x = sw - self.toast_w - 4
         self._final_y = sh - self.toast_h - 4 - (index * (self.toast_h + YAHOO_GAP)) - _y_offset
-        start_y = sh
+
+        if not is_first_toast and len(_yahoo_toasts) > 1:
+            prev_toast = _yahoo_toasts[1]
+            start_y = prev_toast._final_y
+        else:
+            start_y = sh
 
         self.win.geometry(f"{self.toast_w}x{self.toast_h}+{self._final_x}+{start_y}")
         self.win.update_idletasks()
@@ -1816,7 +2054,8 @@ class YahooToast:
         _speed_steps = {1: 6, 2: 10, 3: 15, 4: 22, 5: 30}
         total_steps = _speed_steps.get(int(_anim_cfg.get("toast_anim_speed", 3)), 15)
 
-        if anim_style == "yahoo":
+        if anim_style == "yahoo" and is_first_toast:
+
             try:
                 self.win.attributes("-alpha", 0.0)
             except Exception:
@@ -1833,7 +2072,7 @@ class YahooToast:
                         pass
                     return
                 t = i / total_steps
-                t_e = 1.0 - (1.0 - t) ** 2 
+                t_e = 1.0 - (1.0 - t) ** 2
                 alpha = t_e
                 scale = 0.9 + 0.1 * t_e
                 w = max(1, int(self.toast_w * scale))
@@ -1843,6 +2082,27 @@ class YahooToast:
                 try:
                     self.win.geometry(f"{w}x{h}+{x}+{y}")
                     self.win.attributes("-alpha", alpha)
+                except Exception:
+                    pass
+                aid = self.win.after(10, lambda: animate_step(i + 1))
+                self._after_ids.append(aid)
+
+            animate_step()
+        elif anim_style == "yahoo" and not is_first_toast:
+
+            def animate_step(i=0):
+                if not self.win or self._closed:
+                    return
+                if i >= total_steps:
+                    try:
+                        self.win.geometry(f"{self.toast_w}x{self.toast_h}+{self._final_x}+{self._final_y}")
+                    except Exception:
+                        pass
+                    return
+                t = i / total_steps 
+                y = int(start_y + (self._final_y - start_y) * t)
+                try:
+                    self.win.geometry(f"{self.toast_w}x{self.toast_h}+{self._final_x}+{y}")
                 except Exception:
                     pass
                 aid = self.win.after(10, lambda: animate_step(i + 1))
@@ -1872,9 +2132,13 @@ class YahooToast:
         self._timer.start()
 
 def _remove_yahoo_toast(toast: YahooToast) -> None:
+    global _yahoo_last_channel_id, _yahoo_last_is_guild
     with _yahoo_lock:
         if toast in _yahoo_toasts:
             _yahoo_toasts.remove(toast)
+        if not _yahoo_toasts:
+            _yahoo_last_channel_id = None
+            _yahoo_last_is_guild = False
     if _tk_root:
         _tk_root.after(0, _reposition_yahoo_toasts)
 
@@ -1884,7 +2148,7 @@ def _reposition_yahoo_toasts() -> None:
     sh = _tk_root.winfo_screenheight()
     _y_offset = int(load_config().get("toast_y_offset", 0))
     y_cursor = sh - 4 - _y_offset
-    for t in _yahoo_toasts:
+    for t in reversed(_yahoo_toasts):
         if t.win and not t._closed:
             new_y = y_cursor - t.toast_h
             t._final_y = new_y
@@ -2005,8 +2269,25 @@ def _get_user_body_border(user_id: str) -> "str | None":
     cfg = load_config()
     per_user = cfg.get("per_user_sounds", {})
     user_cfg = per_user.get(user_id, {})
-    col = user_cfg.get("body_border_color", "").strip()
-    return col if col else None
+    col = user_cfg.get("body_border_color", "").strip().lstrip("#")
+    if not col:
+        return None
+    return f"#{col}"
+
+def _get_per_user_pp_cfg(user_id: str) -> dict:
+    if not user_id:
+        return {}
+    cfg = load_config()
+    user_cfg = cfg.get("per_user_sounds", {}).get(user_id, {})
+    return {
+        "skin_folder":    user_cfg.get("pu_pp_skin_folder",    "").strip(),
+        "bg":             user_cfg.get("pu_pp_bg",             "").strip(),
+        "fg":             user_cfg.get("pu_pp_fg",             "").strip(),
+        "body":           user_cfg.get("pu_pp_body",           "").strip(),
+        "clock":          user_cfg.get("pu_pp_clock",          "").strip(),
+        "tint":           user_cfg.get("pu_pp_tint",           "").strip(),
+        "outline_color":  user_cfg.get("pu_pp_outline_color",  "").strip(),
+    }
 
 def _push_yahoo_toast(title: str, body: str, url: "str | None",
                       avatar_png: "str | None" = None,
@@ -2017,13 +2298,55 @@ def _push_yahoo_toast(title: str, body: str, url: "str | None",
                       channel_name: str = "",
                       author_id: str = "") -> None:
     def _do() -> None:
+        global _yahoo_last_channel_id, _yahoo_last_is_guild
         _cfg = load_config()
         _max_stack = int(_cfg.get("yahoo_max_stack", YAHOO_MAX_STACK))
-        _compact = _cfg.get("toast_display_mode", "normal") == "compact"
+        _display_mode = _cfg.get("toast_display_mode", "normal")
+        _compact  = (_display_mode == "compact")
+        _extended = (_display_mode == "extended")
         _compact_icons = _cfg.get("compact_icons", {})
+
+
+        _is_guild = bool(guild_name)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        if author_id and _has_per_user_skin(author_id):
+            _effective_channel_key = f"__puser__{author_id}__{'guild' if _is_guild else 'dm'}__"
+        else:
+            _effective_channel_key = channel_id
+
+        _same_channel = (_effective_channel_key is not None and _effective_channel_key == _yahoo_last_channel_id)
+
+
+        _show_titlebar = True
 
         oldest_to_close = None
         with _yahoo_lock:
+            _is_first_toast = len(_yahoo_toasts) == 0
+
+
+
+
+
+            _prev_top = _yahoo_toasts[0] if not _is_first_toast else None
+
             if len(_yahoo_toasts) >= _max_stack:
                 oldest_to_close = _yahoo_toasts.pop()
             new_toast = YahooToast(title, body, url, avatar_png, sound_key, channel_id,
@@ -2031,21 +2354,46 @@ def _push_yahoo_toast(title: str, body: str, url: "str | None",
                                    titlebar_start=None, titlebar_end=None,
                                    author_id=author_id,
                                    compact_mode=_compact,
-                                   compact_icons=_compact_icons)
+                                   extended_mode=_extended,
+                                   compact_icons=_compact_icons,
+                                   show_titlebar=_show_titlebar)
             _yahoo_toasts.insert(0, new_toast)
-            new_toast.build(0)
+
+
+
+
+            if _prev_top is not None and _prev_top.show_titlebar and _same_channel:
+                _tk_root.after(0, lambda t=_prev_top: t.set_titlebar_visible(False))
+
+
+
+
+            if _prev_top is not None and _prev_top.extended_mode:
+                _tk_root.after(0, lambda t=_prev_top: t.set_opciones_visible(False))
+
+            new_toast.build(0, is_first_toast=_is_first_toast)
             sh = _tk_root.winfo_screenheight()
             _y_offset = int(_cfg.get("toast_y_offset", 0))
             y_cursor = sh - 4 - _y_offset
-            for t in _yahoo_toasts:
+
+
+            for t in reversed(_yahoo_toasts):
                 if t.win and not t._closed:
                     new_y = y_cursor - t.toast_h
                     t._final_y = new_y
-                    try:
-                        t.win.geometry(f"{t.toast_w}x{t.toast_h}+{t._final_x}+{new_y}")
-                    except Exception:
-                        pass
+
+
+                    if t is not new_toast:
+                        try:
+                            t.win.geometry(f"{t.toast_w}x{t.toast_h}+{t._final_x}+{new_y}")
+                        except Exception:
+                            pass
                     y_cursor = new_y - YAHOO_GAP
+
+
+        _yahoo_last_channel_id = _effective_channel_key
+        _yahoo_last_is_guild = _is_guild
+
         if oldest_to_close is not None:
             oldest_to_close.close(animate=False)
     if _tk_root:
@@ -2321,7 +2669,7 @@ def _pil_font(size: int = None, bold: bool = False) -> "ImageFont.FreeTypeFont":
                 return ImageFont.truetype(path, px)
             except Exception:
                 pass
-     
+
         fallback = entry[0]
         if os.path.exists(fallback):
             try:
@@ -2557,17 +2905,22 @@ def _draw_text_unicode(draw: "ImageDraw.ImageDraw",
 
     if clip_x > 0:
         img_dest = draw._image
-        tmp = Image.new("RGBA", img_dest.size, (0, 0, 0, 0))
-        tmp_draw = ImageDraw.Draw(tmp)
-        for fnt_r, txt_r, x_r in runs:
-            tmp_draw.text((x_r, y), txt_r, font=fnt_r, fill=fill)
-        mask = Image.new("L", img_dest.size, 255)
-        mask_draw = ImageDraw.Draw(mask)
-        mask_draw.rectangle([clip_x, 0, img_dest.width, img_dest.height], fill=0)
-        r, g, b, a = tmp.split()
-        a = ImageChops.multiply(a, mask)
-        tmp = Image.merge("RGBA", (r, g, b, a))
-        img_dest.alpha_composite(tmp)
+
+        if clip_x >= img_dest.width:
+            for fnt_r, txt_r, x_r in runs:
+                draw.text((x_r, y), txt_r, font=fnt_r, fill=fill)
+        else:
+            tmp = Image.new("RGBA", img_dest.size, (0, 0, 0, 0))
+            tmp_draw = ImageDraw.Draw(tmp)
+            for fnt_r, txt_r, x_r in runs:
+                tmp_draw.text((x_r, y), txt_r, font=fnt_r, fill=fill)
+            mask = Image.new("L", img_dest.size, 255)
+            mask_draw = ImageDraw.Draw(mask)
+            mask_draw.rectangle([clip_x, 0, img_dest.width, img_dest.height], fill=0)
+            r, g, b, a = tmp.split()
+            a = ImageChops.multiply(a, mask)
+            tmp = Image.merge("RGBA", (r, g, b, a))
+            img_dest.alpha_composite(tmp)
     else:
         for fnt_r, txt_r, x_r in runs:
             draw.text((x_r, y), txt_r, font=fnt_r, fill=fill)
@@ -2813,9 +3166,12 @@ class SkinRenderer:
                force_clock:        Optional[bool] = None,
                avatar_corner_radius: int = 0,  
                avatar_aa: bool = True,        
-               avatar_border_width: int = -1,    
+               avatar_border_width: int = -1,
+               avatar_border_color: str = "",
                avatar_border_aa: bool = True,     
                bold_prefix: str = "",         
+               color_clock: str = None,       
+               clock_bold:  bool = False,     
                ) -> Image.Image:
 
         if not PIL_OK:
@@ -2824,6 +3180,7 @@ class SkinRenderer:
         bg_rgb  = hex_to_rgb(color_bg)
         fg_rgb  = hex_to_rgb(color_fg)
         msg_rgb = hex_to_rgb(color_msg)
+        clk_rgb = hex_to_rgb(color_clock) if color_clock else None
         _effective_tint = back_tint if back_tint else BACK_TINT_COLOR
         if _effective_tint:
             try:
@@ -2833,10 +3190,10 @@ class SkinRenderer:
         else:
             mono_tint = bg_rgb
 
-        fnt_title = _pil_font(9, bold=True)
-        fnt_body  = _pil_font(9, bold=False)
-        fnt_body_bold = _pil_font(9, bold=True)
-        fnt_time  = _pil_font(8, bold=False)
+        fnt_title = _pil_font(FONT_SIZE, bold=True)
+        fnt_body  = _pil_font(FONT_SIZE, bold=False)
+        fnt_body_bold = _pil_font(FONT_SIZE, bold=True)
+        fnt_time  = _pil_font(FONT_SIZE, bold=clock_bold)
 
         def text_size(txt, fnt):
             bb = fnt.getbbox(txt)
@@ -2927,7 +3284,7 @@ class SkinRenderer:
                     _avatar_img = self._add_avatar_border(
                         _avatar_img,
                         radius=avatar_corner_radius,
-                        border_color=AVATAR_BORDER_COLOR,
+                        border_color=avatar_border_color or AVATAR_BORDER_COLOR,
                         border_width=_bw,
                         aa=avatar_border_aa)
                 av_w, av_h = _avatar_img.size
@@ -3056,6 +3413,7 @@ class SkinRenderer:
 
         _avatar_rendered = False 
         _avatar_right_edge = 0  
+        _avatar_left_edge  = -1 
         for obj in skin.objects:
             if not _type_visible(obj.obj_type, obj):
                 continue
@@ -3064,8 +3422,9 @@ class SkinRenderer:
             y = _eval.eval(obj.y_expr, ctx)
 
             if obj.obj_type == "text" and _avatar_right_edge > 0:
-                if x < _avatar_right_edge + 5:
-                    x = _avatar_right_edge + 5
+                if _avatar_left_edge >= 0 and _avatar_left_edge < x:
+                    if x < _avatar_right_edge + 5:
+                        x = _avatar_right_edge + 5
 
             if obj.obj_type == "bitmap":
                 src_img = self._load_bitmap(obj.source, skin.folder,
@@ -3228,11 +3587,11 @@ class SkinRenderer:
                                     self._composite_rgba(img, char_crop, draw_x, y)
                                     draw_x += cw_val
                     else:
-                        col = obj.color if obj.color else (150, 200, 255)
-                        _draw_text_unicode(draw, (x, y), clock_str, fnt_time, (*col, 255))
+                        col = obj.color if obj.color else clk_rgb if clk_rgb else (150, 200, 255)
+                        _draw_text_unicode(draw, (x - 4, y), clock_str, fnt_time, (*col, 255))
                 else:
-                    col = obj.color if obj.color else (150, 200, 255)
-                    _draw_text_unicode(draw, (x, y), clock_str, fnt_time, (*col, 255))
+                    col = obj.color if obj.color else clk_rgb if clk_rgb else (150, 200, 255)
+                    _draw_text_unicode(draw, (x - 4, y), clock_str, fnt_time, (*col, 255))
 
             elif obj.obj_type == "icon":
                 if _icon_img is not None:
@@ -3248,6 +3607,7 @@ class SkinRenderer:
             elif obj.obj_type == "avatar":
                 if _avatar_img is not None and not _avatar_rendered:
                     self._composite_rgba(img, _avatar_img, x, y)
+                    _avatar_left_edge  = x
                     _avatar_right_edge = x + _avatar_img.width
                     _avatar_rendered = True
 
@@ -3324,7 +3684,7 @@ class SkinRenderer:
             min(255, lum * tb // 128),
         )
 
-    
+
 
     def _apply_mono(self, img: Image.Image, tint_rgb: tuple) -> Image.Image:
         img = img.convert("RGBA")
@@ -3564,7 +3924,11 @@ class PopupWindow:
                  force_clock:  Optional[bool] = None,
                  avatar_corner_radius: int = 0,
                  avatar_aa: bool = True,
+                 avatar_outline_width: int = 1,
+                 avatar_outline_color: str = "",
                  bold_prefix: str = "",
+                 color_clock: str = None,
+                 clock_bold:  bool = False,
                  ):
 
         self.root        = root
@@ -3584,7 +3948,11 @@ class PopupWindow:
         self.force_clock  = force_clock
         self.avatar_corner_radius = avatar_corner_radius
         self.avatar_aa = avatar_aa
+        self.avatar_outline_width = avatar_outline_width
+        self.avatar_outline_color = avatar_outline_color
         self.bold_prefix = bold_prefix
+        self.color_clock = color_clock
+        self.clock_bold  = clock_bold
 
         self._mouse_in  = False
         self._destroyed = False
@@ -3624,7 +3992,11 @@ class PopupWindow:
             force_clock=self.force_clock,
             avatar_corner_radius=self.avatar_corner_radius,
             avatar_aa=self.avatar_aa,
+            avatar_border_width=self.avatar_outline_width,
+            avatar_border_color=self.avatar_outline_color,
             bold_prefix=self.bold_prefix,
+            color_clock=self.color_clock,
+            clock_bold=self.clock_bold,
         )
         self.win_width    = img.width
         self.total_height = img.height
@@ -3820,22 +4192,63 @@ class PopupWindow:
                x1,y2, x1,y2-r, x1,y1+r, x1,y1]
         c.create_polygon(pts, smooth=True, **kw)
 
+    def _move_frame(self, x: int, y: int):
+        self.win.geometry(f"+{x}+{y}")
+        if getattr(self, '_use_layered', False):
+            _ulw(self._hwnd, self._pil_img)
+
     def move_to(self, x: int, y: int):
         self._target_x, self._target_y = x, y
         if self._anim_id:
             try: self.win.after_cancel(self._anim_id)
             except Exception: pass
             self._anim_id = None
+
         if ANIMATE:
-            self._animate_move()
+            _anim_cfg = load_config()
+            self._anim_style = _anim_cfg.get("toast_anim_style", "simple")
+            _speed_steps = {1: 6, 2: 10, 3: 15, 4: 22, 5: 30}
+            self._anim_total = _speed_steps.get(int(_anim_cfg.get("toast_anim_speed", 3)), 15)
+            self._anim_step_n = 0
+
+            if self._anim_style == "yahoo" and not getattr(self, "_pp_appeared", False):
+                self._pp_appeared = True
+                if not getattr(self, "_use_layered", False):
+                    try: self.win.attributes("-alpha", 0.0)
+                    except Exception: pass
+                self._animate_appear()
+            else:
+                self._animate_move()
         else:
             self._move_frame(x, y)
             self.win.deiconify()
 
-    def _move_frame(self, x: int, y: int):
-        self.win.geometry(f"+{x}+{y}")
-        if getattr(self, '_use_layered', False):
-            _ulw(self._hwnd, self._pil_img)
+    def _animate_appear(self):
+        if self._destroyed: return
+        step = self._anim_step_n
+        total = self._anim_total
+        if step >= total:
+            self._move_frame(self._target_x, self._target_y)
+            if not getattr(self, "_use_layered", False):
+                try: self.win.attributes("-alpha", 1.0)
+                except Exception: pass
+            self.win.deiconify()
+            return
+        t = step / total
+        t_e = 1.0 - (1.0 - t) ** 2
+        scale = 0.9 + 0.1 * t_e
+        w = max(1, int(self.win_width * scale))
+        h = max(1, int(self.total_height * scale))
+        x = self._target_x + (self.win_width - w) // 2
+        y = self._target_y + (self.total_height - h) // 2
+        try:
+            self.win.geometry(f"{w}x{h}+{x}+{y}")
+            if not getattr(self, "_use_layered", False):
+                self.win.attributes("-alpha", t_e)
+        except Exception: pass
+        self.win.deiconify()
+        self._anim_step_n = step + 1
+        self._anim_id = self.win.after(self.ANIM_MS, self._animate_appear)
 
     def _animate_move(self):
         if self._destroyed: return
@@ -3853,10 +4266,18 @@ class PopupWindow:
             self.win.deiconify()
             return
 
-        ax = dx//4 or (1 if dx > 0 else -1)
-        ay = dy//4 or (1 if dy > 0 else -1)
+        anim_style = getattr(self, "_anim_style", "simple")
+        if anim_style == "simple":
+            remaining = max(1, getattr(self, "_anim_total", 15) - self._anim_step_n)
+            ax = int(dx / remaining) or (1 if dx > 0 else -1)
+            ay = int(dy / remaining) or (1 if dy > 0 else -1)
+        else:
+            ax = dx // 4 or (1 if dx > 0 else -1)
+            ay = dy // 4 or (1 if dy > 0 else -1)
+
         self._move_frame(cx + ax, cy + ay)
         self.win.deiconify()
+        self._anim_step_n = getattr(self, "_anim_step_n", 0) + 1
         self._anim_id = self.win.after(self.ANIM_MS, self._animate_move)
 
     def _on_enter(self, _=None):
@@ -3940,6 +4361,8 @@ def _push_popupplus_toast(title: str, body: str, url: "_Optional[str]",
         back_tint   = cfg.get("pp_back_tint", "").strip() or None
         av_radius   = int(cfg.get("pp_avatar_radius", 0))
         av_aa       = bool(cfg.get("pp_avatar_aa", True))
+        av_outline  = int(cfg.get("pp_avatar_outline_width", 1))
+        av_outline_color = cfg.get("pp_avatar_outline_color", "").strip()
         timeout_s   = int(cfg.get("pp_timeout", 7))
         location    = cfg.get("pp_location", "bottomright")
         font_family = cfg.get("pp_font_family", "Segoe UI")
@@ -3948,6 +4371,8 @@ def _push_popupplus_toast(title: str, body: str, url: "_Optional[str]",
         force_icon   = bool(cfg.get("pp_force_icon", True))
         force_clock  = bool(cfg.get("pp_force_clock", False))
         font_aa      = bool(cfg.get("pp_font_aa", True))
+        color_clock  = cfg.get("pp_color_clock", "").strip() or None
+        clock_bold   = bool(cfg.get("pp_clock_bold", False))
 
         import importlib
         global FONT_FAMILY, FONT_SIZE, FONT_AA, LOCATION, BACK_TINT_COLOR
@@ -4019,10 +4444,26 @@ def _push_popupplus_toast(title: str, body: str, url: "_Optional[str]",
             }
             _ttype = _ck_map2.get(sound_key, "message")
             _tc = cfg.get("pp_type_colors", {}).get(_ttype, {})
-            color_bg  = _tc.get("bg",   "").strip() or color_bg
-            color_fg  = _tc.get("fg",   "").strip() or color_fg
-            color_msg = _tc.get("body", "").strip() or color_msg
-            back_tint = _tc.get("tint", "").strip() or back_tint
+            color_bg  = _tc.get("bg",    "").strip() or color_bg
+            color_fg  = _tc.get("fg",    "").strip() or color_fg
+            color_msg = _tc.get("body",  "").strip() or color_msg
+            back_tint = _tc.get("tint",  "").strip() or back_tint
+            color_clock = _tc.get("clock", "").strip() or color_clock
+
+        if author_id:
+            _pu_pp = _get_per_user_pp_cfg(author_id)
+            if _pu_pp.get("skin_folder") and os.path.isdir(_pu_pp["skin_folder"]):
+                try:
+                    skin = _pp_parser.find_and_parse(_pu_pp["skin_folder"])
+                except Exception:
+                    pass
+            color_bg    = _pu_pp.get("bg",    "").strip() or color_bg
+            color_fg    = _pu_pp.get("fg",    "").strip() or color_fg
+            color_msg   = _pu_pp.get("body",  "").strip() or color_msg
+            color_clock = _pu_pp.get("clock", "").strip() or color_clock
+            back_tint   = _pu_pp.get("tint",  "").strip() or back_tint
+            if _pu_pp.get("outline_color"):
+                av_outline_color = _pu_pp["outline_color"]
 
         try:
             pw = PopupWindow(
@@ -4043,7 +4484,11 @@ def _push_popupplus_toast(title: str, body: str, url: "_Optional[str]",
                 force_clock  = force_clock,
                 avatar_corner_radius = av_radius,
                 avatar_aa = av_aa,
+                avatar_outline_width = av_outline,
+                avatar_outline_color = av_outline_color,
                 bold_prefix = bold_prefix,
+                color_clock = color_clock,
+                clock_bold  = clock_bold,
             )
             _orig_destroy = pw.destroy
             def _patched_destroy(pw=pw, orig=_orig_destroy):
@@ -4541,8 +4986,8 @@ def _raw_show_balloon(title: str, body: str, url: "str | None",
     is_queue            = cfg2.get("notif_style", "instant") == "queue"
     balloon_sound_mode  = cfg2.get("balloon_sound_mode", False) and not suppress_sound
     use_balloon_sound   = is_queue or balloon_sound_mode
-                                                                            
-                                                                             
+
+
     if balloon_sound_mode and not is_queue:
         wav_path = _get_sound_path(sound_key)
         _set_balloon_sound_registry(wav_path)
@@ -4707,7 +5152,7 @@ def show_balloon(title: str, body: str, url: "str | None" = None,
 
 def _open_balloon_url() -> None:
     global _pending_update_info
-                                                                                  
+
     if _pending_update_info is not None:
         info = _pending_update_info
         _pending_update_info = None
@@ -5170,7 +5615,7 @@ def _create_tray_icon() -> None:
     _nid.hIcon            = hicon
     _nid.szTip            = "Discord Balloon Notifier"
     shell32.Shell_NotifyIconW(NIM_ADD, ctypes.byref(_nid))
-                                                                         
+
     _update_tray_icon_for_state()
 
 def _message_loop() -> None:
@@ -5476,16 +5921,16 @@ async def run_gateway(token: str) -> None:
 
                             _my_status = await _fetch_user_status(http, token)
 
-                                                                                 
-                                                                                   
-                                                                                     
-                                                                                 
-                                                                                
-                                                                                        
+
+
+
+
+
+
                             _unread_channels.clear()
                             _has_unread = False
                             try:
-                                                                                                   
+
                                 read_state_entries = d.get("read_state", {})
                                 if isinstance(read_state_entries, dict):
                                     read_state_entries = read_state_entries.get("entries", [])
@@ -5508,7 +5953,7 @@ async def run_gateway(token: str) -> None:
                                             msg_id  = str(msg.get("id", "0"))
                                             if not ch_id or ch_id in muted_channels:
                                                 continue
-                                                                                                       
+
                                             already_read_up_to = last_read.get(ch_id, "0")
                                             if msg_id > already_read_up_to:
                                                 _unread_channels.add(ch_id)
@@ -5538,7 +5983,7 @@ async def run_gateway(token: str) -> None:
                             except Exception as _e:
                                 print(f"[gateway] Could not seed unread state: {_e}")
                             _update_tray_icon_for_state()
-                                                                                
+
 
                             print(f"[gateway] Logged in as: {name} (id={my_user_id})")
                             print(f"[gateway] Status: {_my_status} | "
@@ -5557,8 +6002,8 @@ async def run_gateway(token: str) -> None:
                             continue
 
                         if t == "READY_SUPPLEMENTAL":
-                                                                                         
-                                                                                 
+
+
                             continue
 
                         if t == "PRESENCE_UPDATE":
@@ -5889,7 +6334,7 @@ async def run_gateway(token: str) -> None:
                         if channel_id and channel_id in muted_channels:
                             print(f"[muted] Muted channel ({channel_id}), skipping.")
                             continue
-                            
+
                         _notif_mode = load_config().get("notification_mode", "all")
                         if _notif_mode == "mentions_only" and guild_id:
                             if not _was_mentioned(d, my_user_id):
@@ -6771,6 +7216,7 @@ class SettingsWindow:
             self._pp_force_avatar_var = tk.BooleanVar(value=bool(cfg.get("pp_force_avatar", True)))
             self._pp_force_icon_var   = tk.BooleanVar(value=bool(cfg.get("pp_force_icon", True)))
             self._pp_force_clock_var  = tk.BooleanVar(value=bool(cfg.get("pp_force_clock", False)))
+            self._pp_clock_bold_var   = tk.BooleanVar(value=bool(cfg.get("pp_clock_bold", False)))
             self._pp_font_aa_var      = tk.BooleanVar(value=bool(cfg.get("pp_font_aa", True)))
 
         xp_checkbox(content_grp, "Show avatar (pfp)", self._pp_force_avatar_var
@@ -6778,6 +7224,8 @@ class SettingsWindow:
         xp_checkbox(content_grp, "Show icon", self._pp_force_icon_var
                     ).pack(anchor=tk.W, padx=10, pady=1)
         xp_checkbox(content_grp, "Show clock", self._pp_force_clock_var
+                    ).pack(anchor=tk.W, padx=10, pady=1)
+        xp_checkbox(content_grp, "Bold clock", self._pp_clock_bold_var
                     ).pack(anchor=tk.W, padx=10, pady=1)
         xp_checkbox(content_grp, "Antialiased fonts", self._pp_font_aa_var
                     ).pack(anchor=tk.W, padx=10, pady=(1, 6))
@@ -6812,10 +7260,11 @@ class SettingsWindow:
         col_grp.pack(fill=tk.X, padx=4, pady=(0, 4))
 
         if not hasattr(self, "_pp_color_bg_var"):
-            self._pp_color_bg_var  = tk.StringVar(value=cfg.get("pp_color_bg",  "#808080"))
-            self._pp_color_fg_var  = tk.StringVar(value=cfg.get("pp_color_fg",  "#FFFFFF"))
-            self._pp_color_msg_var = tk.StringVar(value=cfg.get("pp_color_msg", "#EFEFEF"))
-            self._pp_back_tint_var = tk.StringVar(value=cfg.get("pp_back_tint", ""))
+            self._pp_color_bg_var    = tk.StringVar(value=cfg.get("pp_color_bg",    "#808080"))
+            self._pp_color_fg_var    = tk.StringVar(value=cfg.get("pp_color_fg",    "#FFFFFF"))
+            self._pp_color_msg_var   = tk.StringVar(value=cfg.get("pp_color_msg",   "#EFEFEF"))
+            self._pp_color_clock_var = tk.StringVar(value=cfg.get("pp_color_clock", ""))
+            self._pp_back_tint_var   = tk.StringVar(value=cfg.get("pp_back_tint",   ""))
 
         def _make_col_row(parent, label, var):
             row = tk.Frame(parent, bg=XP_FACE)
@@ -6841,6 +7290,7 @@ class SettingsWindow:
         _make_col_row(col_grp, "Background:", self._pp_color_bg_var)
         _make_col_row(col_grp, "Title color:", self._pp_color_fg_var)
         _make_col_row(col_grp, "Body color:", self._pp_color_msg_var)
+        _make_col_row(col_grp, "Clock color:", self._pp_color_clock_var)
 
         bt_row = tk.Frame(col_grp, bg=XP_FACE)
         bt_row.pack(fill=tk.X, padx=10, pady=(0, 6))
@@ -6869,10 +7319,11 @@ class SettingsWindow:
                                      ("call", "Call")]:
                 _td = _tc_saved.get(_ttype, {})
                 self._pp_type_color_vars[_ttype] = {
-                    "bg":   tk.StringVar(value=_td.get("bg",   "")),
-                    "fg":   tk.StringVar(value=_td.get("fg",   "")),
-                    "body": tk.StringVar(value=_td.get("body", "")),
-                    "tint": tk.StringVar(value=_td.get("tint", "")),
+                    "bg":    tk.StringVar(value=_td.get("bg",    "")),
+                    "fg":    tk.StringVar(value=_td.get("fg",    "")),
+                    "body":  tk.StringVar(value=_td.get("body",  "")),
+                    "clock": tk.StringVar(value=_td.get("clock", "")),
+                    "tint":  tk.StringVar(value=_td.get("tint",  "")),
                 }
 
         def _toggle_cpt():
@@ -6893,30 +7344,38 @@ class SettingsWindow:
 
         _TYPE_LABELS = [("message", "Message"), ("mention", "@Mention"),
                         ("friend_request", "Friend Req."), ("call", "Call")]
-        _COL_LABELS  = [("bg", "BG"), ("fg", "Title"), ("body", "Body"), ("tint", "Tint")]
+        _COL_LABELS  = [("bg", "BG"), ("fg", "Title"), ("body", "Body"),
+                        ("clock", "Clock"), ("tint", "Tint")]
 
-        _hdr = tk.Frame(_cpt_inner, bg=XP_FACE)
-        _hdr.pack(fill=tk.X)
-        tk.Label(_hdr, text="", width=11, bg=XP_FACE).pack(side=tk.LEFT)
-        for _, _cl in _COL_LABELS:
-            tk.Label(_hdr, text=_cl, width=9, bg=XP_FACE, fg=XP_TEXT,
-                     font=("Tahoma", 7, "bold")).pack(side=tk.LEFT, padx=1)
+        _ENTRY_W = 6
 
-        def _make_cpt_entry(parent_row, var):
-            ef = tk.Frame(parent_row, bg=XP_BORDER, bd=1, relief=tk.FLAT)
-            ef.pack(side=tk.LEFT, padx=2)
-            e = tk.Entry(ef, textvariable=var, bg=XP_WHITE, fg=XP_TEXT,
+        _grid = tk.Frame(_cpt_inner, bg=XP_FACE)
+        _grid.pack(fill=tk.X)
+        _LABEL_COL_W = 82
+        _ENTRY_COL_W = 52
+        _grid.columnconfigure(0, minsize=_LABEL_COL_W)
+        for _ci in range(1, len(_COL_LABELS) + 1):
+            _grid.columnconfigure(_ci, minsize=_ENTRY_COL_W)
+
+        tk.Label(_grid, text="", bg=XP_FACE, font=("Tahoma", 7)
+                 ).grid(row=0, column=0, sticky=tk.W)
+        for _ci, (_, _cl) in enumerate(_COL_LABELS):
+            tk.Label(_grid, text=_cl, bg=XP_FACE, fg=XP_TEXT,
+                     font=("Tahoma", 7, "bold"), anchor=tk.CENTER, width=7
+                     ).grid(row=0, column=_ci + 1)
+
+        for _ri, (_ttype, _tlabel) in enumerate(_TYPE_LABELS):
+            tk.Label(_grid, text=_tlabel + ":", anchor=tk.W,
+                     bg=XP_FACE, fg=XP_TEXT, font=("Tahoma", 7)
+                     ).grid(row=_ri + 1, column=0, sticky=tk.W, pady=2)
+            for _ci, (_ckey, _) in enumerate(_COL_LABELS):
+                _ef = tk.Frame(_grid, bg=XP_BORDER, bd=1, relief=tk.FLAT)
+                _ef.grid(row=_ri + 1, column=_ci + 1, padx=2, pady=2)
+                tk.Entry(_ef, textvariable=self._pp_type_color_vars[_ttype][_ckey],
+                         bg=XP_WHITE, fg=XP_TEXT,
                          insertbackground=XP_TEXT, relief=tk.FLAT,
-                         font=("Tahoma", 7), width=7)
-            e.pack(fill=tk.X, ipady=2, padx=1, pady=1)
-
-        for _ttype, _tlabel in _TYPE_LABELS:
-            _row = tk.Frame(_cpt_inner, bg=XP_FACE)
-            _row.pack(fill=tk.X, pady=1)
-            tk.Label(_row, text=_tlabel+":", width=11, anchor=tk.W,
-                     bg=XP_FACE, fg=XP_TEXT, font=("Tahoma", 7)).pack(side=tk.LEFT)
-            for _ckey, _ in _COL_LABELS:
-                _make_cpt_entry(_row, self._pp_type_color_vars[_ttype][_ckey])
+                         font=("Tahoma", 7), width=_ENTRY_W
+                         ).pack(fill=tk.X, ipady=2, padx=1, pady=1)
 
         xp_label(_cpt_inner,
                  "Leave empty to use the default colors above.",
@@ -6953,7 +7412,60 @@ class SettingsWindow:
         if not hasattr(self, "_pp_avatar_aa_var"):
             self._pp_avatar_aa_var = tk.BooleanVar(value=bool(cfg.get("pp_avatar_aa", True)))
         xp_checkbox(av_grp, "Antialiased corners (smooth edges)",
-                    self._pp_avatar_aa_var).pack(anchor=tk.W, padx=10, pady=(0, 6))
+                    self._pp_avatar_aa_var).pack(anchor=tk.W, padx=10, pady=(0, 4))
+
+        if not hasattr(self, "_pp_avatar_outline_var"):
+            self._pp_avatar_outline_var = tk.IntVar(value=int(cfg.get("pp_avatar_outline_width", 1)))
+            self._pp_avatar_outline_lbl = tk.StringVar(
+                value=f"{self._pp_avatar_outline_var.get()}px")
+
+        ol_row = tk.Frame(av_grp, bg=XP_FACE)
+        ol_row.pack(fill=tk.X, padx=10, pady=(0, 2))
+        xp_label(ol_row, "Outline width:").pack(side=tk.LEFT)
+        tk.Scale(ol_row, from_=0, to=8, orient=tk.HORIZONTAL,
+                 variable=self._pp_avatar_outline_var, showvalue=False,
+                 bg=XP_FACE, fg=XP_TEXT, troughcolor=XP_WHITE,
+                 activebackground=XP_FACE_DARK, highlightthickness=0,
+                 bd=1, relief=tk.FLAT, sliderlength=18, length=160,
+                 command=lambda v: self._pp_avatar_outline_lbl.set(f"{int(float(v))}px"),
+                 ).pack(side=tk.LEFT, padx=6)
+        tk.Label(ol_row, textvariable=self._pp_avatar_outline_lbl,
+                 bg=XP_FACE, fg=XP_TEXT, font=XP_FONT_BOLD, width=5,
+                 ).pack(side=tk.LEFT)
+        xp_label(av_grp, "0 = no outline. Outline color matches the skin border.",
+                 fg=XP_GREY_TXT).pack(anchor=tk.W, padx=10, pady=(0, 2))
+
+        if not hasattr(self, "_pp_avatar_outline_color_var"):
+            self._pp_avatar_outline_color_var = tk.StringVar(
+                value=cfg.get("pp_avatar_outline_color", "#000000"))
+
+        oc_row = tk.Frame(av_grp, bg=XP_FACE)
+        oc_row.pack(fill=tk.X, padx=10, pady=(0, 6))
+        xp_label(oc_row, "Outline color:").pack(side=tk.LEFT)
+        _oc_swatch = tk.Label(oc_row, text="   ",
+                              bg=self._pp_avatar_outline_color_var.get() or "#000000",
+                              relief=tk.FLAT, width=3)
+        _oc_swatch.pack(side=tk.LEFT, padx=(6, 2))
+        _oc_ef = tk.Frame(oc_row, bg=XP_BORDER, bd=1, relief=tk.FLAT)
+        _oc_ef.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 2))
+        tk.Entry(_oc_ef, textvariable=self._pp_avatar_outline_color_var,
+                 bg=XP_WHITE, fg=XP_TEXT, insertbackground=XP_TEXT,
+                 relief=tk.FLAT, font=("Tahoma", 7), width=8
+                 ).pack(fill=tk.X, ipady=3, padx=1, pady=1)
+        def _pick_outline_color():
+            from tkinter import colorchooser
+            c = colorchooser.askcolor(parent=self.win, title="Outline color",
+                                      initialcolor=self._pp_avatar_outline_color_var.get())[1]
+            if c:
+                self._pp_avatar_outline_color_var.set(c)
+                _oc_swatch.config(bg=c)
+        xp_button(oc_row, "\u2026", _pick_outline_color, width=2).pack(side=tk.LEFT)
+        self._pp_avatar_outline_color_var.trace_add(
+            "write",
+            lambda *_: _oc_swatch.config(
+                bg=self._pp_avatar_outline_color_var.get()
+                if len(self._pp_avatar_outline_color_var.get()) == 7
+                else "#000000"))
 
         to_grp = tk.LabelFrame(parent, text=" Popup Timeout ",
                                bg=XP_FACE, fg=XP_TEXT, font=XP_FONT_BOLD,
@@ -7131,26 +7643,38 @@ class SettingsWindow:
                                     bd=2, relief=tk.GROOVE)
         compact_grp.pack(fill=tk.X, padx=4, pady=(8, 4))
 
-        tk.Radiobutton(compact_grp, text="Normal  (pfp + message)",
+        tk.Radiobutton(compact_grp, text=_t("radio_normal_label"),
                        variable=self._toast_display_mode_var, value="normal",
                        bg=XP_FACE, fg=XP_TEXT, selectcolor=XP_WHITE,
                        activebackground=XP_FACE, activeforeground=XP_TEXT,
                        font=XP_FONT_BOLD, anchor=tk.W,
                        ).pack(fill=tk.X, padx=10, pady=(6, 0))
         tk.Label(compact_grp,
-                 text="Classic style: avatar on the left, message text on the right.",
+                 text=_t("radio_normal_desc"),
                  bg=XP_FACE, fg=XP_GREY_TXT, font=("Tahoma", 7),
                  justify=tk.LEFT, anchor=tk.W,
                  ).pack(fill=tk.X, padx=28, pady=(0, 4))
 
-        tk.Radiobutton(compact_grp, text="Compact  (small icon + message)",
+        tk.Radiobutton(compact_grp, text=_t("radio_extended_label"),
+                       variable=self._toast_display_mode_var, value="extended",
+                       bg=XP_FACE, fg=XP_TEXT, selectcolor=XP_WHITE,
+                       activebackground=XP_FACE, activeforeground=XP_TEXT,
+                       font=XP_FONT_BOLD, anchor=tk.W,
+                       ).pack(fill=tk.X, padx=10, pady=(4, 0))
+        tk.Label(compact_grp,
+                 text=_t("radio_extended_desc"),
+                 bg=XP_FACE, fg=XP_GREY_TXT, font=("Tahoma", 7),
+                 justify=tk.LEFT, anchor=tk.W,
+                 ).pack(fill=tk.X, padx=28, pady=(0, 4))
+
+        tk.Radiobutton(compact_grp, text=_t("radio_compact_label"),
                        variable=self._toast_display_mode_var, value="compact",
                        bg=XP_FACE, fg=XP_TEXT, selectcolor=XP_WHITE,
                        activebackground=XP_FACE, activeforeground=XP_TEXT,
                        font=XP_FONT_BOLD, anchor=tk.W,
                        ).pack(fill=tk.X, padx=10, pady=(4, 0))
         tk.Label(compact_grp,
-                 text="Yahoo 2009 style: pfp replaced by a tiny type icon,\nless vertical space, more messages on screen at once.",
+                 text=_t("radio_compact_desc"),
                  bg=XP_FACE, fg=XP_GREY_TXT, font=("Tahoma", 7),
                  justify=tk.LEFT, anchor=tk.W,
                  ).pack(fill=tk.X, padx=28, pady=(0, 6))
@@ -7597,40 +8121,119 @@ class SettingsWindow:
 
         tex_frm = tk.Frame(frame, bg=XP_FACE)
         entry["_pu_tex_frm"] = tex_frm
-        tex_frm.pack(fill=tk.X, padx=6, pady=(0, 2))
-        for lbl_text, key in [("Titlebar left:",  "titlebar_left"),
-                              ("Titlebar mid:",   "titlebar_mid"),
-                              ("Titlebar right:", "titlebar_right"),
-                              ("Close btn:",      "close_btn")]:
-            tex_row = tk.Frame(tex_frm, bg=XP_FACE)
-            tex_row.pack(fill=tk.X, padx=0, pady=2)
-            tk.Label(tex_row, text=lbl_text, width=14, anchor=tk.W,
+
+        ntype = getattr(self, "_notif_type_var", tk.StringVar(value="popup")).get()
+
+        if ntype == "popupplus":
+            tex_frm.pack(fill=tk.X, padx=6, pady=(0, 2))
+
+            skin_row = tk.Frame(tex_frm, bg=XP_FACE)
+            skin_row.pack(fill=tk.X, pady=2)
+            tk.Label(skin_row, text="Skin folder:", width=14, anchor=tk.W,
                      bg=XP_FACE, fg=XP_TEXT, font=XP_FONT).pack(side=tk.LEFT)
-            tex_var = tk.StringVar(value=sounds.get(key, ""))
-            entry[f"{key}_var"] = tex_var
-            tex_ef = tk.Frame(tex_row, bg=XP_BORDER, bd=1, relief=tk.FLAT)
-            tex_ef.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(4, 2))
-            tk.Entry(tex_ef, textvariable=tex_var, bg=XP_WHITE, fg=XP_TEXT,
+            pu_skin_var = tk.StringVar(value=sounds.get("pu_pp_skin_folder", ""))
+            entry["pu_pp_skin_folder_var"] = pu_skin_var
+            skin_ef = tk.Frame(skin_row, bg=XP_BORDER, bd=1, relief=tk.FLAT)
+            skin_ef.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(4, 2))
+            tk.Entry(skin_ef, textvariable=pu_skin_var, bg=XP_WHITE, fg=XP_TEXT,
                      insertbackground=XP_TEXT, relief=tk.FLAT, font=("Tahoma", 7),
                      width=8).pack(fill=tk.X, ipady=3, padx=1, pady=1)
-            xp_button(tex_row, "…",
-                      lambda v=tex_var: self._pu_browse_tex(v),
-                      width=2).pack(side=tk.LEFT, padx=(0, 2))
+            def _browse_pu_skin(v=pu_skin_var):
+                from tkinter import filedialog
+                folder = filedialog.askdirectory(parent=self.win, title="Select skin folder")
+                if folder:
+                    v.set(folder)
+            xp_button(skin_row, "…", _browse_pu_skin, width=2).pack(side=tk.LEFT, padx=(0, 2))
 
-        border_row = tk.Frame(frame, bg=XP_FACE)
-        border_row.pack(fill=tk.X, padx=6, pady=(2, 4))
-        tk.Label(border_row, text="Border colour:", width=14, anchor=tk.W,
-                 bg=XP_FACE, fg=XP_TEXT, font=XP_FONT).pack(side=tk.LEFT)
-        pu_border_var = tk.StringVar(value=sounds.get("body_border_color", ""))
-        entry["body_border_color_var"] = pu_border_var
-        border_ef = tk.Frame(border_row, bg=XP_BORDER, bd=1, relief=tk.FLAT)
-        border_ef.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(4, 2))
-        tk.Entry(border_ef, textvariable=pu_border_var, bg=XP_WHITE, fg=XP_TEXT,
-                 insertbackground=XP_TEXT, relief=tk.FLAT, font=("Tahoma", 7),
-                 width=8).pack(fill=tk.X, ipady=3, padx=1, pady=1)
-        xp_button(border_row, "…",
-                  lambda v=pu_border_var: self._pu_pick_color(v),
-                  width=2).pack(side=tk.LEFT, padx=(0, 2))
+            _PU_PP_COLORS = [
+                ("bg",    "BG:"),
+                ("fg",    "Title:"),
+                ("body",  "Body:"),
+                ("clock", "Clock:"),
+                ("tint",  "Tint:"),
+            ]
+            for ck, cl in _PU_PP_COLORS:
+                c_row = tk.Frame(tex_frm, bg=XP_FACE)
+                c_row.pack(fill=tk.X, pady=2)
+                tk.Label(c_row, text=cl, width=14, anchor=tk.W,
+                         bg=XP_FACE, fg=XP_TEXT, font=XP_FONT).pack(side=tk.LEFT)
+                c_var = tk.StringVar(value=sounds.get(f"pu_pp_{ck}", ""))
+                entry[f"pu_pp_{ck}_var"] = c_var
+                _sw = tk.Label(c_row, text="   ", width=3, relief=tk.FLAT,
+                               bg=c_var.get() if len(c_var.get()) == 7 else XP_FACE)
+                _sw.pack(side=tk.LEFT, padx=(4, 2))
+                c_ef = tk.Frame(c_row, bg=XP_BORDER, bd=1, relief=tk.FLAT)
+                c_ef.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 2))
+                tk.Entry(c_ef, textvariable=c_var, bg=XP_WHITE, fg=XP_TEXT,
+                         insertbackground=XP_TEXT, relief=tk.FLAT, font=("Tahoma", 7),
+                         width=8).pack(fill=tk.X, ipady=3, padx=1, pady=1)
+                def _pick_c(v=c_var, sw=_sw):
+                    from tkinter import colorchooser
+                    c = colorchooser.askcolor(parent=self.win)[1]
+                    if c:
+                        v.set(c)
+                        sw.config(bg=c)
+                xp_button(c_row, "…", _pick_c, width=2).pack(side=tk.LEFT, padx=(0, 2))
+                c_var.trace_add("write", lambda *_, v=c_var, sw=_sw: sw.config(
+                    bg=v.get() if len(v.get()) == 7 else XP_FACE))
+
+            oc_row = tk.Frame(tex_frm, bg=XP_FACE)
+            oc_row.pack(fill=tk.X, pady=2)
+            tk.Label(oc_row, text="Outline color:", width=14, anchor=tk.W,
+                     bg=XP_FACE, fg=XP_TEXT, font=XP_FONT).pack(side=tk.LEFT)
+            pu_oc_var = tk.StringVar(value=sounds.get("pu_pp_outline_color", ""))
+            entry["pu_pp_outline_color_var"] = pu_oc_var
+            _oc_sw = tk.Label(oc_row, text="   ", width=3, relief=tk.FLAT,
+                              bg=pu_oc_var.get() if len(pu_oc_var.get()) == 7 else XP_FACE)
+            _oc_sw.pack(side=tk.LEFT, padx=(4, 2))
+            oc_ef = tk.Frame(oc_row, bg=XP_BORDER, bd=1, relief=tk.FLAT)
+            oc_ef.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 2))
+            tk.Entry(oc_ef, textvariable=pu_oc_var, bg=XP_WHITE, fg=XP_TEXT,
+                     insertbackground=XP_TEXT, relief=tk.FLAT, font=("Tahoma", 7),
+                     width=8).pack(fill=tk.X, ipady=3, padx=1, pady=1)
+            def _pick_oc(v=pu_oc_var, sw=_oc_sw):
+                from tkinter import colorchooser
+                c = colorchooser.askcolor(parent=self.win)[1]
+                if c:
+                    v.set(c)
+                    sw.config(bg=c)
+            xp_button(oc_row, "…", _pick_oc, width=2).pack(side=tk.LEFT, padx=(0, 2))
+
+        else:
+            tex_frm.pack(fill=tk.X, padx=6, pady=(0, 2))
+            for lbl_text, key in [("Titlebar left:",  "titlebar_left"),
+                                  ("Titlebar mid:",   "titlebar_mid"),
+                                  ("Titlebar right:", "titlebar_right"),
+                                  ("Close btn:",      "close_btn")]:
+                tex_row = tk.Frame(tex_frm, bg=XP_FACE)
+                tex_row.pack(fill=tk.X, padx=0, pady=2)
+                tk.Label(tex_row, text=lbl_text, width=14, anchor=tk.W,
+                         bg=XP_FACE, fg=XP_TEXT, font=XP_FONT).pack(side=tk.LEFT)
+                tex_var = tk.StringVar(value=sounds.get(key, ""))
+                entry[f"{key}_var"] = tex_var
+                tex_ef = tk.Frame(tex_row, bg=XP_BORDER, bd=1, relief=tk.FLAT)
+                tex_ef.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(4, 2))
+                tk.Entry(tex_ef, textvariable=tex_var, bg=XP_WHITE, fg=XP_TEXT,
+                         insertbackground=XP_TEXT, relief=tk.FLAT, font=("Tahoma", 7),
+                         width=8).pack(fill=tk.X, ipady=3, padx=1, pady=1)
+                xp_button(tex_row, "…",
+                          lambda v=tex_var: self._pu_browse_tex(v),
+                          width=2).pack(side=tk.LEFT, padx=(0, 2))
+
+            border_row = tk.Frame(frame, bg=XP_FACE)
+            border_row.pack(fill=tk.X, padx=6, pady=(2, 4))
+            tk.Label(border_row, text="Border colour:", width=14, anchor=tk.W,
+                     bg=XP_FACE, fg=XP_TEXT, font=XP_FONT).pack(side=tk.LEFT)
+            pu_border_var = tk.StringVar(value=sounds.get("body_border_color", ""))
+            entry["body_border_color_var"] = pu_border_var
+            border_ef = tk.Frame(border_row, bg=XP_BORDER, bd=1, relief=tk.FLAT)
+            border_ef.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(4, 2))
+            tk.Entry(border_ef, textvariable=pu_border_var, bg=XP_WHITE, fg=XP_TEXT,
+                     insertbackground=XP_TEXT, relief=tk.FLAT, font=("Tahoma", 7),
+                     width=8).pack(fill=tk.X, ipady=3, padx=1, pady=1)
+            xp_button(border_row, "…",
+                      lambda v=pu_border_var: self._pu_pick_color(v),
+                      width=2).pack(side=tk.LEFT, padx=(0, 2))
 
         tk.Frame(frame, bg=XP_FACE, height=2).pack()
 
@@ -7853,7 +8456,7 @@ class SettingsWindow:
             print(f"[tray] Preview status icon for '{status_key}': {os.path.basename(path)}")
 
     def _build_more_page(self, parent: tk.Frame) -> None:
-                                                                                
+
         exit_grp = tk.LabelFrame(parent, text=_t("grp_exit_settings"),
                                  bg=XP_FACE, fg=XP_TEXT, font=XP_FONT_BOLD,
                                  bd=2, relief=tk.GROOVE)
@@ -7888,7 +8491,7 @@ class SettingsWindow:
                  justify=tk.LEFT, anchor=tk.W,
                  ).pack(fill=tk.X, padx=28, pady=(0, 6))
 
-                                                                               
+
         update_grp = tk.LabelFrame(parent, text=_t("grp_update"),
                                    bg=XP_FACE, fg=XP_TEXT, font=XP_FONT_BOLD,
                                    bd=2, relief=tk.GROOVE)
@@ -7908,7 +8511,7 @@ class SettingsWindow:
                  justify=tk.LEFT, anchor=tk.W,
                  ).pack(fill=tk.X, padx=28, pady=(0, 6))
 
-                                                                                
+
         about_grp = tk.LabelFrame(parent, text=" About ",
                                   bg=XP_FACE, fg=XP_TEXT, font=XP_FONT_BOLD,
                                   bd=2, relief=tk.GROOVE)
@@ -7944,11 +8547,15 @@ class SettingsWindow:
                                     if v.get().strip()}
         _tex_vars = getattr(self, "_titlebar_tex_vars", {})
         for key in ("toast_titlebar_left", "toast_titlebar_mid", "toast_titlebar_right", "toast_close_btn"):
-            val = _tex_vars.get(key, tk.StringVar()).get().strip() if _tex_vars else ""
-            if val:
-                cfg[key] = val
-            else:
-                cfg.pop(key, None)
+            if _tex_vars:
+
+                val = _tex_vars.get(key, tk.StringVar()).get().strip()
+                if val:
+                    cfg[key] = val
+                else:
+                    cfg.pop(key, None)
+
+
         _chroma = getattr(self, "_chroma_var", None)
         cfg["toast_chroma_key"] = _chroma.get().strip() if _chroma else "#FF00FF"
         per_user: dict = {}
@@ -7965,17 +8572,28 @@ class SettingsWindow:
             if label:
                 sounds["_label"] = label
             mode = entry.get("_pu_mode_var", tk.StringVar(value="texture")).get()
-            for key in ("titlebar_left", "titlebar_mid", "titlebar_right", "close_btn"):
+            _ntype_now = self._notif_type_var.get()
+            if _ntype_now == "popupplus":
+                for pu_key in ("pu_pp_skin_folder", "pu_pp_bg", "pu_pp_fg",
+                               "pu_pp_body", "pu_pp_clock", "pu_pp_tint",
+                               "pu_pp_outline_color"):
+                    var = entry.get(f"{pu_key}_var")
+                    if var:
+                        c = var.get().strip()
+                        if c:
+                            sounds[pu_key] = c
+            else:
+                for key in ("titlebar_left", "titlebar_mid", "titlebar_right", "close_btn"):
                     var = entry.get(f"{key}_var")
                     if var:
                         c = var.get().strip()
                         if c:
                             sounds[key] = c
-            border_var = entry.get("body_border_color_var")
-            if border_var:
-                bc = border_var.get().strip()
-                if bc:
-                    sounds["body_border_color"] = bc
+                border_var = entry.get("body_border_color_var")
+                if border_var:
+                    bc = border_var.get().strip()
+                    if bc:
+                        sounds["body_border_color"] = bc
             if sounds:
                 per_user[uid] = sounds
         cfg["per_user_sounds"] = per_user
@@ -7997,10 +8615,16 @@ class SettingsWindow:
             cfg["pp_color_msg"] = self._pp_color_msg_var.get().strip() or "#EFEFEF"
         if hasattr(self, "_pp_back_tint_var"):
             cfg["pp_back_tint"] = self._pp_back_tint_var.get().strip()
+        if hasattr(self, "_pp_color_clock_var"):
+            cfg["pp_color_clock"] = self._pp_color_clock_var.get().strip()
         if hasattr(self, "_pp_avatar_radius_var"):
             cfg["pp_avatar_radius"] = int(self._pp_avatar_radius_var.get())
         if hasattr(self, "_pp_avatar_aa_var"):
             cfg["pp_avatar_aa"] = bool(self._pp_avatar_aa_var.get())
+        if hasattr(self, "_pp_avatar_outline_var"):
+            cfg["pp_avatar_outline_width"] = int(self._pp_avatar_outline_var.get())
+        if hasattr(self, "_pp_avatar_outline_color_var"):
+            cfg["pp_avatar_outline_color"] = self._pp_avatar_outline_color_var.get().strip()
         if hasattr(self, "_pp_font_family_var"):
             cfg["pp_font_family"] = self._pp_font_family_var.get()
         if hasattr(self, "_pp_font_size_var"):
@@ -8011,6 +8635,8 @@ class SettingsWindow:
             cfg["pp_force_icon"] = bool(self._pp_force_icon_var.get())
         if hasattr(self, "_pp_force_clock_var"):
             cfg["pp_force_clock"] = bool(self._pp_force_clock_var.get())
+        if hasattr(self, "_pp_clock_bold_var"):
+            cfg["pp_clock_bold"] = bool(self._pp_clock_bold_var.get())
         if hasattr(self, "_pp_font_aa_var"):
             cfg["pp_font_aa"] = bool(self._pp_font_aa_var.get())
         if hasattr(self, "_pp_skin_opts"):
@@ -8441,7 +9067,7 @@ def _launch_updater() -> None:
             except Exception as e:
                 print(f"[updater] Failed to launch updater: {e}")
             return
-                                                            
+
     py_path = os.path.join(base, "updater.py")
     if os.path.isfile(py_path):
         try:
@@ -8477,7 +9103,7 @@ def _poll_update_flag() -> None:
     download_url = info.get("download_url", "")
 
     if ready:
-                                                                     
+
         _raw_show_balloon(
             "Ballooncord \u2014 Update ready",
             f"v{ver} downloaded. Restart Ballooncord to apply.",
@@ -8485,7 +9111,7 @@ def _poll_update_flag() -> None:
         )
         print(f"[updater] Showed 'restart to apply' balloon for v{ver}")
     else:
-                                                                                     
+
         _pending_update_info = {"version": ver, "download_url": download_url}
         _raw_show_balloon(
             "Ballooncord \u2014 Update available",
@@ -8522,7 +9148,7 @@ def main() -> None:
     tray_thread.start()
     _tray_ready.wait()
 
-                                                                
+
     threading.Thread(target=_poll_update_flag, daemon=True).start()
 
     def on_login(token: str) -> None:

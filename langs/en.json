@@ -142,5 +142,17 @@
   "anim_normal": "Normal",
   "anim_slow": "Slow",
   "anim_very_slow": "Very slow",
-  "lbl_anim_speed": "Speed:"
+  "lbl_anim_speed": "Speed:",
+
+  "ext_ha_dicho": " said",
+  "ext_time_1min": "about a minute ago",
+  "ext_time_Nmin": "about {n} minutes ago",
+  "ext_opciones": "Options",
+
+  "radio_normal_label": "Normal  (pfp + message)",
+  "radio_normal_desc": "Classic style: avatar on the left, message text on the right.",
+  "radio_extended_label": "Extended  (Yahoo Messenger style)",
+  "radio_extended_desc": "Yahoo Messenger style: \"[Name] said \u201cmsg\u201d\", timestamp, and Options button on the top toast.",
+  "radio_compact_label": "Compact  (small icon + message)",
+  "radio_compact_desc": "Yahoo 2009 style: pfp replaced by a tiny type icon,\nless vertical space, more messages on screen at once."
 }
