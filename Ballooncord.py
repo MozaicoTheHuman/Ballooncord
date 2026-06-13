@@ -1,4 +1,4 @@
-from __future__ import annotations                                          
+from __future__ import annotations
 
 import asyncio
 import ctypes
@@ -419,10 +419,10 @@ NIF_INFO    = 0x10
 NIIF_INFO    = 0x01
 NIIF_NOSOUND = 0x10
 
-NIN_BALLOONSHOW      = 0x0402  
+NIN_BALLOONSHOW      = 0x0402
 NIN_BALLOONUSERCLICK = 0x0405
-NIN_BALLOONHIDE      = 0x0403  
-NIN_BALLOONTIMEOUT   = 0x0404 
+NIN_BALLOONHIDE      = 0x0403
+NIN_BALLOONTIMEOUT   = 0x0404
 
 WM_RBUTTONUP     = 0x0205
 WM_LBUTTONDBLCLK = 0x0203
@@ -454,14 +454,13 @@ MF_POPUP     = 0x10
 DISCORD_API = "https://discord.com/api/v9"
 GATEWAY_URL = "wss://gateway.discord.gg/?v=9&encoding=json&compress=zlib-stream"
 
-
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 
 DND_STATUSES   = {"dnd"}
 
-_my_status: str = "online" 
-_token:     str = ""   
-_gw_ws    = None   
+_my_status: str = "online"
+_token:     str = ""
+_gw_ws    = None
 _gw_loop: asyncio.AbstractEventLoop | None = None
 
 _vc_guild_id:   str | None = None
@@ -472,17 +471,17 @@ _vc_self_stream: bool = False
 _vc_self_video:  bool = False
 
 _active_call_channel_id: str | None = None
-_outgoing_call_channel_id: str | None = None  
-_outgoing_call_time: float = 0.0     
+_outgoing_call_channel_id: str | None = None
+_outgoing_call_time: float = 0.0
 
 _has_unread: bool = False
 
 _unread_channels: set[str] = set()
 _unread_channel_info: dict[str, dict] = {}
 _state_icon_cache: dict[str, int] = {}
-_vc_member_ids: set[str] = set() 
-_vc_join_time:  float = 0.0  
-_VC_JOIN_GRACE: float = 3.0  
+_vc_member_ids: set[str] = set()
+_vc_join_time:  float = 0.0
+_VC_JOIN_GRACE: float = 3.0
 
 _focused_channel_id: str | None = None
 _focus_poll_stop: threading.Event = threading.Event()
@@ -553,7 +552,7 @@ def _replace_or_add_field11(proto_bytes: bytes, new_field11: bytes) -> bytes:
             elif wire_type == 2:
                 length, pos = _varint_decode(proto_bytes, pos)
                 pos += length
-            elif wire_type == 5: 
+            elif wire_type == 5:
                 pos += 4
             else:
                 result.extend(proto_bytes[field_start:])
@@ -576,16 +575,17 @@ def _replace_or_add_field11(proto_bytes: bytes, new_field11: bytes) -> bytes:
     return bytes(result)
 
 _last_balloon_url:    str | None = None
-_balloon_visible:     bool      = False  
+_balloon_visible:     bool      = False
 _balloon_sent:        bool      = False
-_balloon_pending_sound: bool    = False 
+_balloon_pending_sound: bool    = False
 _balloon_pending_key:   str     = "NewMessage"
 
 _balloon_refcount:    int       = 0
 _balloon_dismiss_timer: "threading.Timer | None" = None
 _last_balloon_channel_id: "str | None" = None
 
-_pending_update_info: "dict | None" = None
+_pending_update_info:  "dict | None" = None
+_pending_restart_info: "dict | None" = None
 
 YAHOO_TOAST_W: int = 280
 YAHOO_TOAST_H: int = 72
@@ -594,10 +594,6 @@ YAHOO_MAX_STACK: int = 4
 YAHOO_GAP: int = 0
 _yahoo_toasts: list = []
 _yahoo_lock: threading.Lock = threading.Lock()
-
-
-
-
 
 _ext_name_font_cache = None
 
@@ -613,7 +609,6 @@ def _get_ext_name_font():
 
 _yahoo_last_channel_id: "str | None" = None
 _yahoo_last_is_guild: bool = False
-
 
 _SOUND_APP_KEY   = "DiscordBalloonNotifier"
 
@@ -655,7 +650,7 @@ def _register_sound_event() -> None:
             try:
                 with winreg.OpenKey(winreg.HKEY_CURRENT_USER, current_path,
                                     0, winreg.KEY_READ):
-                    pass  
+                    pass
             except FileNotFoundError:
                 with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, current_path,
                                         0, winreg.KEY_SET_VALUE) as key:
@@ -865,7 +860,7 @@ def _pygame_play(path: str, volume: float, group: str,
         return None
 
     with _group_locks[group]:
-        _stop_group(group) 
+        _stop_group(group)
         ch = snd.play(loops=loops)
         if ch is not None:
             ch.set_volume(max(0.0, min(1.0, volume)))
@@ -981,7 +976,6 @@ def save_config(data: dict) -> None:
         pass
 
 _log_queue: queue.Queue = queue.Queue()
-
 
 import builtins as _builtins
 _log_file_path: str = os.path.join(_get_base_dir(), "ballooncord_log.txt")
@@ -1100,15 +1094,12 @@ _STRINGS_EN_BUILTIN: dict[str, str] = {
     "icons_hint":          "Choose a PNG or ICO icon for each tray state (16\u00d716 or 32\u00d732 recommended).\nLeave blank to keep the default Discord icon for that state.",
     "grp_icons":           " Icons by State ",
 
-
     "grp_balloon_sound":      " Balloon Sound Mode ",
     "chk_balloon_sound":      "Use Windows balloon sound (all modes)",
     "chk_balloon_sound_desc": "Play sounds via the Windows notification system instead of pygame.\nThis is how Queue mode works — the OS plays the sound as the balloon appears.\nWhen enabled, per-user and pygame volume controls are bypassed for message sounds.",
 
-
     "grp_exit_settings":   " On Exit ",
     "exit_chk_close_discord": "Close Discord on exit",
-
 
     "grp_update":              " Updates ",
     "chk_check_updates":       "Check for updates on startup",
@@ -1119,7 +1110,6 @@ _STRINGS_EN_BUILTIN: dict[str, str] = {
     "balloon_update_body":     "A new version ({ver}) is available. Click to download now.",
     "balloon_updated_title":   "Ballooncord \u2014 Update ready",
     "balloon_updated_body":    "v{ver} downloaded. Restart Ballooncord to apply.",
-
 
     "exit_dlg_title":      "Exit",
     "exit_dlg_msg":        "Exit the Discord Balloon Notifier?",
@@ -1203,7 +1193,7 @@ class NOTIFYICONDATAW(ctypes.Structure):
         ("hBalloonIcon",     ctypes.wintypes.HICON),
     ]
 
-NIIF_USER = 0x00000004 
+NIIF_USER = 0x00000004
 
 MB_ICONQUESTION = 0x00000020
 
@@ -1219,7 +1209,7 @@ import tempfile        as _tempfile
 
 _pfp_cache:    dict[tuple, str] = {}
 _pfp_lock      = threading.Lock()
-_avatar_hicon: int = 0 
+_avatar_hicon: int = 0
 _orig_hicon:   int = 0
 
 class _GdipStartupInput(ctypes.Structure):
@@ -1238,6 +1228,35 @@ def _pfp_cdn_url(user_id: str, avatar_hash: "str | None") -> str:
         return f"https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png?size=64"
     idx = (int(user_id) >> 22) % 6
     return f"https://cdn.discordapp.com/embed/avatars/{idx}.png"
+
+def _guild_icon_cdn_url(guild_id: str, icon_hash: str) -> str:
+    return f"https://cdn.discordapp.com/icons/{guild_id}/{icon_hash}.png?size=64"
+
+def _download_guild_icon(guild_id: str, icon_hash: "str | None") -> "str | None":
+    """Download a guild/server icon and return the local cached PNG path."""
+    if not guild_id or not icon_hash:
+        return None
+    key = (f"guild_{guild_id}", icon_hash)
+    with _pfp_lock:
+        cached = _pfp_cache.get(key)
+        if cached and os.path.exists(cached):
+            return cached
+    try:
+        fd, path = _tempfile.mkstemp(suffix=".png", prefix="dbn_guild_")
+        os.close(fd)
+        req = _urllib_request.Request(
+            _guild_icon_cdn_url(guild_id, icon_hash),
+            headers={"User-Agent": "DiscordBalloonNotifier/1.0"},
+        )
+        with _urllib_request.urlopen(req, timeout=6) as resp, open(path, "wb") as fh:
+            fh.write(resp.read())
+        with _pfp_lock:
+            _pfp_cache[key] = path
+        print(f"[avatar] Downloaded guild icon: {guild_id} -> {os.path.basename(path)}")
+        return path
+    except Exception as exc:
+        print(f"[avatar] Guild icon download FAILED ({guild_id}): {exc}")
+        return None
 
 def _download_pfp(user_id: str, avatar_hash: "str | None") -> "str | None":
 
@@ -1329,7 +1348,7 @@ def _set_discord_icon_on_window(win: tk.Toplevel) -> None:
         if exe:
             win.iconbitmap(exe)
     except Exception:
-        pass 
+        pass
 
 def _set_tray_icon_handle(hicon: int) -> None:
 
@@ -1354,17 +1373,94 @@ def _restore_tray_icon() -> None:
         _avatar_hicon = 0
     _update_tray_icon_for_state()
 
+def _ico_extract_best_frame(path: str, target_size: int = 16) -> "Image.Image | None":
+    """
+    Parse the ICO binary directly to enumerate all entries (Pillow's n_frames is
+    unreliable for multi-resolution ICOs and only returns the first frame).
+    Selection priority: exact target_size match > higher bit-depth > closest size.
+    Returns a Pillow Image in RGBA mode, already resized to target_size×target_size.
+    """
+    if not _PIL_OK:
+        return None
+    try:
+        import struct as _s, io as _io
+        from PIL import Image as _PI
+
+        with open(path, "rb") as _f:
+            raw = _f.read()
+
+        _count = _s.unpack_from("<H", raw, 4)[0]
+        if _count == 0:
+            return None
+
+        best = None
+        for _i in range(_count):
+            _o = 6 + _i * 16
+            _w, _h, _cc, _r, _planes, _bc, _size, _off = _s.unpack_from("<BBBBHHII", raw, _o)
+            _w = _w or 256
+            _h = _h or 256
+            _img_bytes = raw[_off: _off + _size]
+            exact   = 1 if (_w == target_size and _h == target_size) else 0
+            sdiff   = abs(_w - target_size) + abs(_h - target_size)
+
+            score   = exact * 100000 + _bc * 10 - sdiff
+            if best is None or score > best[0]:
+                best = (score, _img_bytes, _w, _h, _bc)
+
+        if best is None:
+            return None
+
+        _, _img_bytes, _bw, _bh, _bc = best
+
+        _fake = bytearray()
+        _fake += _s.pack("<HHH", 0, 1, 1)
+        _entry_w = 0 if _bw == 256 else _bw
+        _entry_h = 0 if _bh == 256 else _bh
+        _fake += _s.pack("<BBBBHHII", _entry_w, _entry_h, 0, 0, 1, _bc, len(_img_bytes), 22)
+        _fake += _img_bytes
+        img = _PI.open(_io.BytesIO(bytes(_fake))).convert("RGBA")
+        if img.size != (target_size, target_size):
+            img = img.resize((target_size, target_size), _PI.LANCZOS)
+        print(f"[tray] ICO frame selected: {_bw}x{_bh} {_bc}bpp → resized to {target_size}px "
+              f"(of {_count} entries): {os.path.basename(path)}")
+        return img
+    except Exception as _e:
+        print(f"[tray] _ico_extract_best_frame failed: {_e}")
+        return None
+
 def _file_to_hicon(path: str, size: int = 16) -> int:
 
     if not path or not os.path.exists(path):
         return 0
     ext = os.path.splitext(path)[1].lower()
     if ext == ".ico":
+
+        img = _ico_extract_best_frame(path, target_size=size)
+        if img is not None:
+            import tempfile as _tf2, os as _os2
+            fd, tmp = _tf2.mkstemp(suffix=".png", prefix="dbn_ico_")
+            _os2.close(fd)
+            tmp = os.path.abspath(tmp)
+            try:
+                img.save(tmp, format="PNG")
+                hicon = _png_to_hicon(tmp, size)
+            finally:
+                try:
+                    _os2.unlink(tmp)
+                except Exception:
+                    pass
+            if hicon:
+                return hicon
+            print(f"[tray] GDI+ (_png_to_hicon) returned 0 for {os.path.basename(path)}"
+                  " — falling back to LoadImageW")
+
         IMAGE_ICON      = 1
         LR_LOADFROMFILE = 0x0010
-        hicon = user32.LoadImageW(None, path, IMAGE_ICON, size, size, LR_LOADFROMFILE)
+        LR_DEFAULTCOLOR = 0x0000
+        hicon = user32.LoadImageW(None, path, IMAGE_ICON, size, size,
+                                  LR_LOADFROMFILE | LR_DEFAULTCOLOR)
         if hicon:
-            print(f"[tray] ICO loaded ({size}px): {os.path.basename(path)}")
+            print(f"[tray] ICO loaded via LoadImageW ({size}px): {os.path.basename(path)}")
             return hicon
         print(f"[tray] LoadImageW failed for ICO: {path}")
         return 0
@@ -1529,6 +1625,7 @@ class YahooToast:
                  compact_mode: bool = False,
                  extended_mode: bool = False,
                  compact_icons: "dict | None" = None,
+                 compact_use_avatar: bool = False,
                  show_titlebar: bool = True) -> None:
         self.title = title
         self.body = body
@@ -1545,6 +1642,7 @@ class YahooToast:
         self.compact_mode = compact_mode
         self.extended_mode = extended_mode
         self.compact_icons = compact_icons or {}
+        self.compact_use_avatar = compact_use_avatar
         self.show_titlebar = show_titlebar
         self.toast_w = YAHOO_TOAST_W
         if compact_mode:
@@ -1583,6 +1681,10 @@ class YahooToast:
                     same_channel = [t for t in _yahoo_toasts if t.channel_id == self.channel_id]
                 for t in same_channel:
                     t.close(animate=False)
+
+            if _pending_update_info is not None or _pending_restart_info is not None:
+                _open_balloon_url()
+                return
             url = self.url
             if url and isinstance(url, str) and url.strip():
                 _open_client(url)
@@ -1824,7 +1926,6 @@ class YahooToast:
         body_border.pack(fill=tk.BOTH, expand=True)
         self._body_border_frame = body_border
 
-
         if not self.show_titlebar:
             if self.compact_mode:
                 self.toast_h = 52 - 28
@@ -1845,24 +1946,49 @@ class YahooToast:
                 "IncomingCall":  "call",
             }
             _ck = _ck_map.get(self.sound_key, "message")
-            _ci_path = self.compact_icons.get(_ck, "")
             _ci_img = None
-            if _ci_path and os.path.isfile(_ci_path):
+
+            if self.compact_use_avatar and self.avatar_path and os.path.exists(self.avatar_path):
+
                 if _PIL_OK:
                     try:
-                        _pil_img = Image.open(_ci_path).convert("RGBA").resize((16, 16), Image.LANCZOS)
+                        _pil_img = Image.open(self.avatar_path).convert("RGBA").resize((16, 16), Image.LANCZOS)
                         _ci_img = ImageTk.PhotoImage(_pil_img)
                     except Exception as _e:
-                        print(f"[compact] Failed to load icon '{_ci_path}': {_e}")
+                        print(f"[compact] Failed to load avatar as icon: {_e}")
                         _ci_img = None
                 else:
                     try:
-                        _raw = tk.PhotoImage(file=_ci_path)
+                        _raw = tk.PhotoImage(file=self.avatar_path)
                         if _raw.width() > 16:
                             _raw = _raw.subsample(max(1, _raw.width() // 16))
                         _ci_img = _raw
                     except Exception:
                         _ci_img = None
+
+            if _ci_img is None:
+                _ci_path = self.compact_icons.get(_ck, "")
+                if _ci_path and os.path.isfile(_ci_path):
+                    if _PIL_OK:
+                        try:
+                            _ext = os.path.splitext(_ci_path)[1].lower()
+                            if _ext == ".ico":
+                                _pil_img = _ico_extract_best_frame(_ci_path, target_size=16)
+                            else:
+                                _pil_img = Image.open(_ci_path).convert("RGBA").resize((16, 16), Image.LANCZOS)
+                            if _pil_img:
+                                _ci_img = ImageTk.PhotoImage(_pil_img)
+                        except Exception as _e:
+                            print(f"[compact] Failed to load icon '{_ci_path}': {_e}")
+                            _ci_img = None
+                    else:
+                        try:
+                            _raw = tk.PhotoImage(file=_ci_path)
+                            if _raw.width() > 16:
+                                _raw = _raw.subsample(max(1, _raw.width() // 16))
+                            _ci_img = _raw
+                        except Exception:
+                            _ci_img = None
             _fallback_syms = {"message": "✉", "mention": "@", "friend_request": "♟", "call": "☎"}
             if _ci_img:
                 body_icon = tk.Label(body_frm, image=_ci_img, bg="#E8E4E0")
@@ -1887,7 +2013,7 @@ class YahooToast:
             msg_lbl.bind("<Button-1>", self._on_click)
         elif self.extended_mode:
 
-            _WIN_LINK_BLUE = "#0066CC"  
+            _WIN_LINK_BLUE = "#0066CC"
             _GREY_TXT      = "#5F5F60"
             _ext_name = (self.author_name or "?")[:40]
             _ext_body = self.body[:80]
@@ -1972,6 +2098,17 @@ class YahooToast:
             ).pack()
 
             self._update_time_label()
+
+            _ext_click_targets = [body_frm, right, line1, bottom, self._time_label]
+
+            for _w in right.winfo_children():
+                if isinstance(_w, tk.Label):
+                    _ext_click_targets.append(_w)
+            for _w in _ext_click_targets:
+                try:
+                    _w.bind("<Button-1>", self._on_click)
+                except Exception:
+                    pass
         else:
             img32 = None
             if self.avatar_path and os.path.exists(self.avatar_path):
@@ -1986,18 +2123,13 @@ class YahooToast:
                 if custom_icon and os.path.isfile(custom_icon):
                     try:
                         if PIL_OK:
-                            _ci_raw = Image.open(custom_icon)
-                            if hasattr(_ci_raw, "n_frames") and _ci_raw.n_frames > 1:
-                                best_idx, best_diff = 0, float("inf")
-                                for _fi in range(_ci_raw.n_frames):
-                                    _ci_raw.seek(_fi)
-                                    _fw, _fh = _ci_raw.size
-                                    diff = abs(_fw - 32) + abs(_fh - 32)
-                                    if diff < best_diff:
-                                        best_diff, best_idx = diff, _fi
-                                _ci_raw.seek(best_idx)
-                            _ci = _ci_raw.convert("RGBA").resize((32, 32), Image.LANCZOS)
-                            img32 = ImageTk.PhotoImage(_ci)
+                            _ext_ci = os.path.splitext(custom_icon)[1].lower()
+                            if _ext_ci == ".ico":
+                                _ci = _ico_extract_best_frame(custom_icon, target_size=32)
+                            else:
+                                _ci = Image.open(custom_icon).convert("RGBA").resize((32, 32), Image.LANCZOS)
+                            if _ci:
+                                img32 = ImageTk.PhotoImage(_ci)
                         else:
                             img = tk.PhotoImage(file=custom_icon)
                             factor = max(1, img.width() // 32)
@@ -2099,7 +2231,7 @@ class YahooToast:
                     except Exception:
                         pass
                     return
-                t = i / total_steps 
+                t = i / total_steps
                 y = int(start_y + (self._final_y - start_y) * t)
                 try:
                     self.win.geometry(f"{self.toast_w}x{self.toast_h}+{self._final_x}+{y}")
@@ -2305,27 +2437,9 @@ def _push_yahoo_toast(title: str, body: str, url: "str | None",
         _compact  = (_display_mode == "compact")
         _extended = (_display_mode == "extended")
         _compact_icons = _cfg.get("compact_icons", {})
-
+        _compact_use_avatar = _cfg.get("compact_use_avatar", False)
 
         _is_guild = bool(guild_name)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         if author_id and _has_per_user_skin(author_id):
             _effective_channel_key = f"__puser__{author_id}__{'guild' if _is_guild else 'dm'}__"
@@ -2334,16 +2448,11 @@ def _push_yahoo_toast(title: str, body: str, url: "str | None",
 
         _same_channel = (_effective_channel_key is not None and _effective_channel_key == _yahoo_last_channel_id)
 
-
         _show_titlebar = True
 
         oldest_to_close = None
         with _yahoo_lock:
             _is_first_toast = len(_yahoo_toasts) == 0
-
-
-
-
 
             _prev_top = _yahoo_toasts[0] if not _is_first_toast else None
 
@@ -2356,17 +2465,12 @@ def _push_yahoo_toast(title: str, body: str, url: "str | None",
                                    compact_mode=_compact,
                                    extended_mode=_extended,
                                    compact_icons=_compact_icons,
+                                   compact_use_avatar=_compact_use_avatar,
                                    show_titlebar=_show_titlebar)
             _yahoo_toasts.insert(0, new_toast)
 
-
-
-
             if _prev_top is not None and _prev_top.show_titlebar and _same_channel:
                 _tk_root.after(0, lambda t=_prev_top: t.set_titlebar_visible(False))
-
-
-
 
             if _prev_top is not None and _prev_top.extended_mode:
                 _tk_root.after(0, lambda t=_prev_top: t.set_opciones_visible(False))
@@ -2376,12 +2480,10 @@ def _push_yahoo_toast(title: str, body: str, url: "str | None",
             _y_offset = int(_cfg.get("toast_y_offset", 0))
             y_cursor = sh - 4 - _y_offset
 
-
             for t in reversed(_yahoo_toasts):
                 if t.win and not t._closed:
                     new_y = y_cursor - t.toast_h
                     t._final_y = new_y
-
 
                     if t is not new_toast:
                         try:
@@ -2389,7 +2491,6 @@ def _push_yahoo_toast(title: str, body: str, url: "str | None",
                         except Exception:
                             pass
                     y_cursor = new_y - YAHOO_GAP
-
 
         _yahoo_last_channel_id = _effective_channel_key
         _yahoo_last_is_guild = _is_guild
@@ -2403,7 +2504,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 from tkinter import font as tkfont
 import numpy as np
-PIL_OK = _PIL_OK 
+PIL_OK = _PIL_OK
 import sys as _sys
 _WIN32_LAYERED = False
 if _sys.platform == "win32":
@@ -2507,7 +2608,7 @@ def _ulw(hwnd: int, pil_img) -> bool:
     blend  = _BLENDFUNCTION(_AC_SRC_OVER, 0, 255, _AC_SRC_ALPHA)
     ok = _user32.UpdateLayeredWindow(
         hwnd, hdc_scr,
-        None,           
+        None,
         _ct.byref(sz),
         hdc_mem, _ct.byref(pt_src),
         0, _ct.byref(blend), _ULW_ALPHA
@@ -2521,36 +2622,36 @@ def _ulw(hwnd: int, pil_img) -> bool:
 
 WIN_WIDTH        = 220
 WIN_MAX_HEIGHT   = 400
-MIN_SKIN_WIDTH   = 150  
-MIN_SKIN_HEIGHT  = 40   
-MAX_SKIN_WIDTH   = 350 
-DEFAULT_TIMEOUT  = 7    
+MIN_SKIN_WIDTH   = 150
+MIN_SKIN_HEIGHT  = 40
+MAX_SKIN_WIDTH   = 350
+DEFAULT_TIMEOUT  = 7
 OPACITY          = 0.88
 BORDER           = True
 ROUND            = True
-ANIMATE          = True    
+ANIMATE          = True
 TRANS_KEY        = "#010203"
-SB_WIDTH         = 22     
+SB_WIDTH         = 22
 PADDING          = 4
 TEXT_INDENT      = 22
 
-COL_BG           = "#808080" 
+COL_BG           = "#808080"
 COL_BORDER       = "#000000"
 COL_SIDEBAR      = "#7F7F7F"
-COL_TITLE_UL     = "#808080"  
+COL_TITLE_UL     = "#808080"
 COL_FIRST_LINE   = "#FFFFFF"
 COL_SECOND_LINE  = "#EFEFEF"
 COL_TIME         = "#DDEEFF"
 
-CORNER_RADIUS    = 7         
+CORNER_RADIUS    = 7
 LOCATION         = "bottomright"
 
-AVATAR_BORDER_COLOR = "#000000" 
-AVATAR_BORDER_WIDTH = 1     
+AVATAR_BORDER_COLOR = "#000000"
+AVATAR_BORDER_WIDTH = 1
 
 BACK_TINT_COLOR: Optional[str] = None
 STACK_GAP        = 2
-FONT_AA          = True    
+FONT_AA          = True
 FONT_FAMILY      = "Segoe UI"
 FONT_SIZE        = 9
 
@@ -2722,19 +2823,19 @@ def _ft_face_open(path: str):
     return _ft_face_cache[path]
 
 _UNICODE_FALLBACK_PATHS = [
-    "C:/Windows/Fonts/seguisym.ttf",   
-    "C:/Windows/Fonts/seguiemj.ttf",    
-    "C:/Windows/Fonts/SegoeuiHis.ttf",  
-    "C:/Windows/Fonts/segoeui.ttf",    
-    "C:/Windows/Fonts/NirmalaUI.ttf",  
-    "C:/Windows/Fonts/ebrima.ttf",     
-    "C:/Windows/Fonts/msgothic.ttc",   
-    "C:/Windows/Fonts/malgun.ttf",    
-    "C:/Windows/Fonts/meiryo.ttc",    
-    "C:/Windows/Fonts/msyh.ttc",     
-    "C:/Windows/Fonts/YuGothR.ttc",  
-    "C:/Windows/Fonts/simsun.ttc",     
-    "C:/Windows/Fonts/cambria.ttc",   
+    "C:/Windows/Fonts/seguisym.ttf",
+    "C:/Windows/Fonts/seguiemj.ttf",
+    "C:/Windows/Fonts/SegoeuiHis.ttf",
+    "C:/Windows/Fonts/segoeui.ttf",
+    "C:/Windows/Fonts/NirmalaUI.ttf",
+    "C:/Windows/Fonts/ebrima.ttf",
+    "C:/Windows/Fonts/msgothic.ttc",
+    "C:/Windows/Fonts/malgun.ttf",
+    "C:/Windows/Fonts/meiryo.ttc",
+    "C:/Windows/Fonts/msyh.ttc",
+    "C:/Windows/Fonts/YuGothR.ttc",
+    "C:/Windows/Fonts/simsun.ttc",
+    "C:/Windows/Fonts/cambria.ttc",
     "C:/Windows/Fonts/arial.ttf",
     "C:/Windows/Fonts/tahoma.ttf",
     "C:/Windows/Fonts/leelawad.ttf",
@@ -2876,7 +2977,7 @@ def _draw_text_unicode(draw: "ImageDraw.ImageDraw",
     px = font.size if hasattr(font, "size") else 12
     fallbacks = _load_fallback_fonts(px)
 
-    runs: list = []   
+    runs: list = []
     cur_fnt = None
     cur_txt = ""
     cur_x   = x
@@ -2970,17 +3071,17 @@ _eval = ExprEval()
 
 @dataclass
 class SkinObj:
-    obj_type:    str            = ""       
-    source:      str            = ""  
+    obj_type:    str            = ""
+    source:      str            = ""
     x_expr:      str            = "0"
     y_expr:      str            = "0"
-    w_expr:      str            = ""      
-    h_expr:      str            = ""   
+    w_expr:      str            = ""
+    h_expr:      str            = ""
     mono:        bool           = False
     layer:       bool           = False
-    ifset:       list           = field(default_factory=list)   
-    ifnotset:    list           = field(default_factory=list)   
-    color:       tuple          = None    
+    ifset:       list           = field(default_factory=list)
+    ifnotset:    list           = field(default_factory=list)
+    color:       tuple          = None
     proportional:bool           = False
     clocksize:   list           = field(default_factory=list)
 
@@ -3164,14 +3265,14 @@ class SkinRenderer:
                force_avatar:       Optional[bool] = None,
                force_icon:         Optional[bool] = None,
                force_clock:        Optional[bool] = None,
-               avatar_corner_radius: int = 0,  
-               avatar_aa: bool = True,        
+               avatar_corner_radius: int = 0,
+               avatar_aa: bool = True,
                avatar_border_width: int = -1,
                avatar_border_color: str = "",
-               avatar_border_aa: bool = True,     
-               bold_prefix: str = "",         
-               color_clock: str = None,       
-               clock_bold:  bool = False,     
+               avatar_border_aa: bool = True,
+               bold_prefix: str = "",
+               color_clock: str = None,
+               clock_bold:  bool = False,
                ) -> Image.Image:
 
         if not PIL_OK:
@@ -3205,7 +3306,7 @@ class SkinRenderer:
         text_w,  text_h  = text_size(message, fnt_body)
         clock_w, clock_h = text_size(clock_str, fnt_time)
         icon_w,  icon_h  = 16, 16
-        av_w,    av_h    = 0, 0   
+        av_w,    av_h    = 0, 0
 
         def _obj_visible(obj) -> bool:
             if any(not opts.get(i, False) for i in obj.ifset):
@@ -3224,7 +3325,7 @@ class SkinRenderer:
                 return override
             return _obj_visible(obj)
 
-        _CLOCKSIZE_CHARS = "-:0123456789  . "  
+        _CLOCKSIZE_CHARS = "-:0123456789  . "
         for _cobj in skin.objects:
             if _cobj.obj_type == "clock":
                 if not _type_visible("clock", _cobj):
@@ -3296,13 +3397,16 @@ class SkinRenderer:
             try:
                 _icon_raw = Image.open(icon_path)
                 if hasattr(_icon_raw, "n_frames") and _icon_raw.n_frames > 1:
-                    best_idx, best_diff = 0, float("inf")
+                    best_idx, best_score = 0, float("-inf")
                     for _fi in range(_icon_raw.n_frames):
                         _icon_raw.seek(_fi)
                         _fw, _fh = _icon_raw.size
-                        diff = abs(_fw - 16) + abs(_fh - 16)
-                        if diff < best_diff:
-                            best_diff, best_idx = diff, _fi
+                        _size_diff = abs(_fw - 16) + abs(_fh - 16)
+                        _depth = 1 if _icon_raw.mode in ("RGBA", "RGBa", "PA") else 0
+                        _score = -_size_diff * 10 + _depth
+                        if _score > best_score:
+                            best_score = _score
+                            best_idx = _fi
                     _icon_raw.seek(best_idx)
                 _icon_img = _icon_raw.convert("RGBA")
                 _icon_img = _icon_img.resize((icon_w, icon_h), Image.LANCZOS)
@@ -3312,7 +3416,7 @@ class SkinRenderer:
         _chrome_w = 36 + icon_w + clock_w + av_w + 20
         _max_text_w = max(MAX_SKIN_WIDTH - _chrome_w, 40)
         ctx = {
-            "window.width":     WIN_WIDTH,  
+            "window.width":     WIN_WIDTH,
             "window.height":    100,
             "title.width":      min(title_w, _max_text_w),
             "title.height":     title_h,
@@ -3330,12 +3434,12 @@ class SkinRenderer:
         win_w = _eval.eval(skin.w_expr, ctx) if skin.w_expr else WIN_WIDTH
 
         win_w = max(win_w, MIN_SKIN_WIDTH)
-        win_w = min(win_w, MAX_SKIN_WIDTH)   
-        ctx["window.width"] = win_w  
+        win_w = min(win_w, MAX_SKIN_WIDTH)
+        ctx["window.width"] = win_w
 
-        body_x_est = PADDING + TEXT_INDENT  
+        body_x_est = PADDING + TEXT_INDENT
         pr = skin.padding_right if skin.padding_right else PADDING
-        wrap_w = win_w - body_x_est - pr    
+        wrap_w = win_w - body_x_est - pr
 
         ctx_h100 = {**ctx, "window.height": 100}
         for o in skin.objects:
@@ -3352,7 +3456,7 @@ class SkinRenderer:
                         wrap_w = win_w - bx - pr
                 except Exception:
                     pass
-                break  
+                break
         wrap_w = max(wrap_w - 18, 30)
         wrap_lines = _wrap_lines(message, max(wrap_w, 50), fnt_body)
         BODY_MAX_LINES = 3
@@ -3373,7 +3477,7 @@ class SkinRenderer:
         title_line_h = max(title_line_h, 14)
         TITLE_MAX_LINES = 4
         _clock_margin = (clock_w + 8) if clock_w > 0 else 0
-        title_wrap_w = win_w - 40 - _clock_margin 
+        title_wrap_w = win_w - 40 - _clock_margin
         for _to in skin.objects:
             if _to.obj_type == "title":
                 try:
@@ -3411,9 +3515,9 @@ class SkinRenderer:
         draw = ImageDraw.Draw(img)
         draw.fontmode = "1" if not FONT_AA else "L"
 
-        _avatar_rendered = False 
-        _avatar_right_edge = 0  
-        _avatar_left_edge  = -1 
+        _avatar_rendered = False
+        _avatar_right_edge = 0
+        _avatar_left_edge  = -1
         for obj in skin.objects:
             if not _type_visible(obj.obj_type, obj):
                 continue
@@ -3450,7 +3554,9 @@ class SkinRenderer:
                 if y < 0:
                     y = win_h + y
 
-                tiled = self._tile_image(src_img, w, h, tile=obj.mono)
+                sw2, sh2 = src_img.size
+                _force_tile = obj.mono and sw2 == 1 and sh2 == 1
+                tiled = self._tile_image(src_img, w, h, tile=_force_tile)
                 if obj.layer:
                     self._composite_rgba(img, tiled, x, y)
                 else:
@@ -3476,7 +3582,7 @@ class SkinRenderer:
                 tw = min(tw, win_w - x - 5)
                 tw = max(tw, 20)
 
-                bp_full = bold_prefix  
+                bp_full = bold_prefix
                 msg_body = message
                 has_bp = False
                 if bp_full and message.startswith(bp_full):
@@ -3683,8 +3789,6 @@ class SkinRenderer:
             min(255, lum * tg // 128),
             min(255, lum * tb // 128),
         )
-
-
 
     def _apply_mono(self, img: Image.Image, tint_rgb: tuple) -> Image.Image:
         img = img.convert("RGBA")
@@ -3926,6 +4030,7 @@ class PopupWindow:
                  avatar_aa: bool = True,
                  avatar_outline_width: int = 1,
                  avatar_outline_color: str = "",
+                 avatar_outline_aa: bool = True,
                  bold_prefix: str = "",
                  color_clock: str = None,
                  clock_bold:  bool = False,
@@ -3950,6 +4055,7 @@ class PopupWindow:
         self.avatar_aa = avatar_aa
         self.avatar_outline_width = avatar_outline_width
         self.avatar_outline_color = avatar_outline_color
+        self.avatar_outline_aa    = avatar_outline_aa
         self.bold_prefix = bold_prefix
         self.color_clock = color_clock
         self.clock_bold  = clock_bold
@@ -3994,6 +4100,7 @@ class PopupWindow:
             avatar_aa=self.avatar_aa,
             avatar_border_width=self.avatar_outline_width,
             avatar_border_color=self.avatar_outline_color,
+            avatar_border_aa=self.avatar_outline_aa,
             bold_prefix=self.bold_prefix,
             color_clock=self.color_clock,
             clock_bold=self.clock_bold,
@@ -4093,21 +4200,16 @@ class PopupWindow:
         _icon_xoff = 0
         if self.icon_path and PIL_OK:
             try:
-                _ico_raw = Image.open(self.icon_path)
-                if hasattr(_ico_raw, "n_frames") and _ico_raw.n_frames > 1:
-                    best_idx, best_diff = 0, float("inf")
-                    for i in range(_ico_raw.n_frames):
-                        _ico_raw.seek(i)
-                        w_f, h_f = _ico_raw.size
-                        diff = abs(w_f - 16) + abs(h_f - 16)
-                        if diff < best_diff:
-                            best_diff, best_idx = diff, i
-                    _ico_raw.seek(best_idx)
-                _ico = _ico_raw.convert("RGBA")
-                _ico = _ico.resize((16, 16), Image.LANCZOS)
-                self._icon_photo = ImageTk.PhotoImage(_ico)
-                c.create_image(tx, ty + self._tb_h // 2, anchor="w", image=self._icon_photo)
-                _icon_xoff = 20
+                _ext_pp = os.path.splitext(self.icon_path)[1].lower()
+                if _ext_pp == ".ico":
+                    _ico = _ico_extract_best_frame(self.icon_path, target_size=16)
+                else:
+                    _ico = Image.open(self.icon_path).convert("RGBA")
+                    _ico = _ico.resize((16, 16), Image.LANCZOS)
+                if _ico:
+                    self._icon_photo = ImageTk.PhotoImage(_ico)
+                    c.create_image(tx, ty + self._tb_h // 2, anchor="w", image=self._icon_photo)
+                    _icon_xoff = 20
             except Exception as _e:
                 pass
 
@@ -4363,6 +4465,7 @@ def _push_popupplus_toast(title: str, body: str, url: "_Optional[str]",
         av_aa       = bool(cfg.get("pp_avatar_aa", True))
         av_outline  = int(cfg.get("pp_avatar_outline_width", 1))
         av_outline_color = cfg.get("pp_avatar_outline_color", "").strip()
+        av_outline_aa    = bool(cfg.get("pp_avatar_outline_aa", True))
         timeout_s   = int(cfg.get("pp_timeout", 7))
         location    = cfg.get("pp_location", "bottomright")
         font_family = cfg.get("pp_font_family", "Segoe UI")
@@ -4410,13 +4513,24 @@ def _push_popupplus_toast(title: str, body: str, url: "_Optional[str]",
 
         avatar_path = avatar_png if (avatar_png and os.path.exists(avatar_png)) else None
 
+        _icon_slot = cfg.get("pp_icon_slot", "avatar_slot")
+        if _icon_slot == "icon" and avatar_path:
+
+            icon_path   = avatar_path
+            avatar_path = None
+
+        to_evict = []
         with _pp_lock:
             while len(_pp_active_windows) >= max_stack:
-                oldest = _pp_active_windows.pop()
-                try:
-                    oldest.destroy()
-                except Exception:
-                    pass
+                if _pp_active_windows:
+                    to_evict.append(_pp_active_windows.pop())
+                else:
+                    break
+        for oldest in to_evict:
+            try:
+                oldest.destroy()
+            except Exception:
+                pass
 
         if guild_name:
             display_title = f"{guild_name}, #{channel_name}" if channel_name else guild_name
@@ -4486,6 +4600,7 @@ def _push_popupplus_toast(title: str, body: str, url: "_Optional[str]",
                 avatar_aa = av_aa,
                 avatar_outline_width = av_outline,
                 avatar_outline_color = av_outline_color,
+                avatar_outline_aa    = av_outline_aa,
                 bold_prefix = bold_prefix,
                 color_clock = color_clock,
                 clock_bold  = clock_bold,
@@ -4513,6 +4628,10 @@ def _push_popupplus_toast(title: str, body: str, url: "_Optional[str]",
                     except Exception: pass
 
             def _on_body_click(e=None, _url=url, _pw=pw):
+                if _pending_update_info is not None or _pending_restart_info is not None:
+                    _open_balloon_url()
+                    _dismiss_same_channel(_pw)
+                    return
                 if _url:
                     _open_client(_url)
                 _dismiss_same_channel(_pw)
@@ -4574,7 +4693,7 @@ _wnd_proc_ref: WNDPROCTYPE | None         = None
 _tray_ready    = threading.Event()
 
 _tk_root: tk.Tk | None = None
-_log_win = None  
+_log_win = None
 
 def _find_discord_exe() -> str | None:
     local = os.environ.get("LOCALAPPDATA", "")
@@ -4655,7 +4774,7 @@ def _find_discord_hwnd() -> ctypes.wintypes.HWND | None:
         user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid_buf))
         if pid_buf.value in discord_pids:
             result.append(hwnd)
-            return False 
+            return False
         return True
 
     user32.EnumWindows(EnumWindowsProc(callback), 0)
@@ -4866,7 +4985,7 @@ _last_balloon_time: float = 0.0
 _replace_pending:   "_QueuedNotif | None" = None
 _replace_timer:     "threading.Timer | None" = None
 
-_queue_sound_cooldown: float = 4.0 
+_queue_sound_cooldown: float = 4.0
 _queue_last_sound_time: float = 0.0
 
 def _dismiss_balloon() -> None:
@@ -4962,9 +5081,9 @@ def _raw_show_balloon(title: str, body: str, url: "str | None",
     _balloon_sent    = False
     _balloon_visible = False
 
-    use_avatar = load_config().get("show_avatar_icon", True)
+    use_avatar = load_config().get("icon_source", "author") != "none"
     avatar_png = _pending_avatar_png
-    _pending_avatar_png = None 
+    _pending_avatar_png = None
 
     new_hicon = 0
     if use_avatar and avatar_png:
@@ -4975,7 +5094,7 @@ def _raw_show_balloon(title: str, body: str, url: "str | None",
             user32.DestroyIcon(ctypes.c_void_p(_avatar_hicon))
         _avatar_hicon = new_hicon
         _nid.hIcon = ctypes.c_void_p(new_hicon)
-        balloon_flags_base = NIIF_USER  
+        balloon_flags_base = NIIF_USER
     else:
         balloon_flags_base = NIIF_INFO
 
@@ -4986,7 +5105,6 @@ def _raw_show_balloon(title: str, body: str, url: "str | None",
     is_queue            = cfg2.get("notif_style", "instant") == "queue"
     balloon_sound_mode  = cfg2.get("balloon_sound_mode", False) and not suppress_sound
     use_balloon_sound   = is_queue or balloon_sound_mode
-
 
     if balloon_sound_mode and not is_queue:
         wav_path = _get_sound_path(sound_key)
@@ -5151,7 +5269,22 @@ def show_balloon(title: str, body: str, url: "str | None" = None,
     return False
 
 def _open_balloon_url() -> None:
-    global _pending_update_info
+    global _pending_update_info, _pending_restart_info
+
+    if _pending_restart_info is not None:
+        _pending_restart_info = None
+
+        try:
+            if getattr(sys, "frozen", False):
+                subprocess.Popen([sys.executable],
+                                 creationflags=subprocess.CREATE_NO_WINDOW)
+            else:
+                subprocess.Popen([sys.executable] + sys.argv,
+                                 creationflags=subprocess.CREATE_NO_WINDOW)
+        except Exception as _e:
+            print(f"[updater] Restart failed: {_e}")
+        os._exit(0)
+        return
 
     if _pending_update_info is not None:
         info = _pending_update_info
@@ -5239,7 +5372,7 @@ def _kill_client_process() -> None:
         exe_path = cfg.get("dm_exe_path", "")
         target   = os.path.basename(exe_path).lower() if exe_path else "discordmessenger.exe"
     else:
-        target = None 
+        target = None
 
     TH32CS_SNAPPROCESS = 0x00000002
     snap = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
@@ -5303,10 +5436,10 @@ def _load_question_photoimage(size: int = 32) -> "tk.PhotoImage | None":
         bih = BITMAPINFOHEADER()
         bih.biSize        = ctypes.sizeof(BITMAPINFOHEADER)
         bih.biWidth       = size
-        bih.biHeight      = -size 
+        bih.biHeight      = -size
         bih.biPlanes      = 1
         bih.biBitCount    = 32
-        bih.biCompression = 0 
+        bih.biCompression = 0
 
         class BITMAPINFO(ctypes.Structure):
             _fields_ = [("bmiHeader", BITMAPINFOHEADER),
@@ -5361,6 +5494,15 @@ def _load_question_photoimage(size: int = 32) -> "tk.PhotoImage | None":
         print(f"[icon] _load_question_photoimage failed: {e}")
         return None
 
+def _cleanup_tray() -> None:
+    """Remove the tray icon from the taskbar. Safe to call multiple times."""
+    global _nid, _hwnd
+    try:
+        if _nid and _hwnd:
+            shell32.Shell_NotifyIconW(NIM_DELETE, ctypes.byref(_nid))
+    except Exception:
+        pass
+
 def _confirm_exit(hwnd) -> None:
     cfg       = load_config()
     close_pref = cfg.get("exit_close_client", None)
@@ -5368,6 +5510,7 @@ def _confirm_exit(hwnd) -> None:
     if close_pref is not None:
         if close_pref:
             _kill_client_process()
+        _cleanup_tray()
         user32.DestroyWindow(hwnd)
         threading.Timer(0.5, os._exit, args=(0,)).start()
         return
@@ -5418,6 +5561,7 @@ def _confirm_exit(hwnd) -> None:
         dlg.destroy()
         if close_client:
             _kill_client_process()
+        _cleanup_tray()
         user32.DestroyWindow(hwnd)
         threading.Timer(0.5, os._exit, args=(0,)).start()
 
@@ -5513,7 +5657,23 @@ def _show_context_menu(hwnd) -> None:
 
 def _wnd_proc(hwnd, msg, wparam, lparam):
     global _balloon_visible, _balloon_sent, _balloon_pending_sound, _balloon_pending_key
+    WM_QUERYENDSESSION = 0x0011
+    WM_ENDSESSION      = 0x0016
     try:
+        if msg == WM_QUERYENDSESSION:
+
+            return 1
+
+        if msg == WM_ENDSESSION:
+            if wparam:
+                _cleanup_tray()
+                try:
+                    if _tk_root:
+                        _tk_root.after(0, _tk_root.quit)
+                except Exception:
+                    pass
+            return 0
+
         if WM_TASKBARCREATED and msg == WM_TASKBARCREATED:
             print("[tray] TaskbarCreated received — re-adding tray icon")
             if _nid:
@@ -5535,7 +5695,7 @@ def _wnd_proc(hwnd, msg, wparam, lparam):
                 _balloon_visible       = False
                 _balloon_sent          = False
                 _balloon_pending_sound = False
-                _restore_tray_icon() 
+                _restore_tray_icon()
                 _open_balloon_url()
 
             elif event == NIN_BALLOONHIDE:
@@ -5547,7 +5707,7 @@ def _wnd_proc(hwnd, msg, wparam, lparam):
             elif event == NIN_BALLOONTIMEOUT:
                 _balloon_visible = False
                 _balloon_sent    = False
-                _restore_tray_icon() 
+                _restore_tray_icon()
                 if _balloon_pending_sound:
                     key = _balloon_pending_key
                     _balloon_pending_sound = False
@@ -5604,7 +5764,7 @@ def _create_tray_icon() -> None:
     hicon = _load_discord_icon()
 
     global _orig_hicon
-    _orig_hicon = hicon 
+    _orig_hicon = hicon
 
     _nid = NOTIFYICONDATAW()
     _nid.cbSize           = ctypes.sizeof(NOTIFYICONDATAW)
@@ -5657,9 +5817,10 @@ def _parse_muted(guild_settings: list) -> tuple[set[str], set[str]]:
 
 async def _get_channel_info(http, token: str,
                              guild_id: str | None,
-                             channel_id: str | None) -> tuple[str, str, int]:
+                             channel_id: str | None) -> tuple[str, str, int, "str | None"]:
     channel_name = guild_name = ""
     channel_type = -1
+    guild_icon_hash: "str | None" = None
     try:
         if channel_id:
             async with http.get(f"{DISCORD_API}/channels/{channel_id}",
@@ -5672,10 +5833,12 @@ async def _get_channel_info(http, token: str,
             async with http.get(f"{DISCORD_API}/guilds/{guild_id}",
                                 headers={"Authorization": token}) as r:
                 if r.status == 200:
-                    guild_name = (await r.json()).get("name", "")
+                    gdata = await r.json()
+                    guild_name = gdata.get("name", "")
+                    guild_icon_hash = gdata.get("icon")
     except Exception:
         pass
-    return channel_name, guild_name, channel_type
+    return channel_name, guild_name, channel_type, guild_icon_hash
 
 async def _get_nick(http, token: str, guild_id: str | None, author: dict) -> str:
     user_id = author.get("id", "")
@@ -5921,12 +6084,6 @@ async def run_gateway(token: str) -> None:
 
                             _my_status = await _fetch_user_status(http, token)
 
-
-
-
-
-
-
                             _unread_channels.clear()
                             _has_unread = False
                             try:
@@ -5984,7 +6141,6 @@ async def run_gateway(token: str) -> None:
                                 print(f"[gateway] Could not seed unread state: {_e}")
                             _update_tray_icon_for_state()
 
-
                             print(f"[gateway] Logged in as: {name} (id={my_user_id})")
                             print(f"[gateway] Status: {_my_status} | "
 
@@ -6002,7 +6158,6 @@ async def run_gateway(token: str) -> None:
                             continue
 
                         if t == "READY_SUPPLEMENTAL":
-
 
                             continue
 
@@ -6058,7 +6213,7 @@ async def run_gateway(token: str) -> None:
                                 prev_video   = _vc_self_video
 
                                 _vc_guild_id    = d.get("guild_id")
-                                _vc_channel_id  = d.get("channel_id") 
+                                _vc_channel_id  = d.get("channel_id")
                                 _vc_self_mute   = bool(d.get("self_mute", False))
                                 _vc_self_deaf   = bool(d.get("self_deaf", False))
                                 _vc_self_stream = bool(d.get("self_stream", False))
@@ -6382,9 +6537,10 @@ async def run_gateway(token: str) -> None:
                         is_reply = bool(d.get("referenced_message"))
 
                         if guild_id and channel_id in channel_cache:
-                            _ch_name, _gn, _ch_type = channel_cache[channel_id]
+                            _ch_name, _gn, _ch_type, _guild_icon_hash = channel_cache[channel_id]
                         else:
                             _ch_type = -1
+                            _guild_icon_hash = None
                         _VC_TEXT_TYPES = {2, 13}
                         if _ch_type in _VC_TEXT_TYPES and channel_id != _vc_channel_id:
                             print(f"[msg] Skipping text-in-VC message (channel {channel_id}, not in that VC)")
@@ -6393,8 +6549,9 @@ async def run_gateway(token: str) -> None:
                         notif_style = load_config().get("notif_style", "instant")
                         _ch_name = ""
                         _gn = ""
+                        _guild_icon_hash = None
                         if guild_id and channel_id in channel_cache:
-                            _ch_name, _gn, _ = channel_cache[channel_id]
+                            _ch_name, _gn, _, _guild_icon_hash = channel_cache[channel_id]
 
                         if notif_style == "queue":
 
@@ -6421,14 +6578,28 @@ async def run_gateway(token: str) -> None:
                         else:
                             url = f"discord://-/channels/@me/{channel_id}"
 
-                        if load_config().get("show_avatar_icon", True):
-                            pfp_user_id   = author.get("id", "")
-                            pfp_avatar    = author.get("avatar")
-                            print(f"[avatar] Downloading PFP: user={pfp_user_id} hash={pfp_avatar}")
-                            pfp_path = await asyncio.get_event_loop().run_in_executor(
-                                None, _download_pfp, pfp_user_id, pfp_avatar
-                            )
-                            print(f"[avatar] da PFP is ready: {pfp_path}")
+                        _icon_source = load_config().get("icon_source", "author")
+                        if _icon_source != "none":
+                            if _icon_source == "guild" and guild_id and _guild_icon_hash:
+
+                                print(f"[avatar] Downloading guild icon: guild={guild_id} hash={_guild_icon_hash}")
+                                pfp_path = await asyncio.get_event_loop().run_in_executor(
+                                    None, _download_guild_icon, guild_id, _guild_icon_hash
+                                )
+                                if not pfp_path:
+
+                                    pfp_path = await asyncio.get_event_loop().run_in_executor(
+                                        None, _download_pfp, author.get("id", ""), author.get("avatar")
+                                    )
+                            else:
+
+                                pfp_user_id = author.get("id", "")
+                                pfp_avatar  = author.get("avatar")
+                                print(f"[avatar] Downloading PFP: user={pfp_user_id} hash={pfp_avatar}")
+                                pfp_path = await asyncio.get_event_loop().run_in_executor(
+                                    None, _download_pfp, pfp_user_id, pfp_avatar
+                                )
+                            print(f"[avatar] PFP/icon ready: {pfp_path}")
                             _set_pending_avatar(pfp_path)
 
                         was_suppressed = show_balloon(title, content, url=url,
@@ -6452,7 +6623,7 @@ async def run_gateway(token: str) -> None:
                                 "last_content": content[:80] if content else "",
                             }
                         if guild_id:
-                            _ch_info = channel_cache.get(channel_id, ("", "", -1))
+                            _ch_info = channel_cache.get(channel_id, ("", "", -1, None))
                             _unread_label = f"#{_ch_info[0] or channel_id} in {_ch_info[1] or guild_id}"
                         else:
                             _unread_label = f"DM (channel_id={channel_id})"
@@ -6488,22 +6659,22 @@ async def run_gateway(token: str) -> None:
 
 TOAST_TRANSPARENT = "#FF00FF"
 XP_FACE      = "#D4D0C8"
-XP_FACE_DARK = "#C0C0C0" 
-XP_WHITE     = "#FFFFFF" 
+XP_FACE_DARK = "#C0C0C0"
+XP_WHITE     = "#FFFFFF"
 XP_BORDER    = "#808080"
-XP_HIGHLIGHT = "#0A246A" 
-XP_HITEXT    = "#FFFFFF" 
-XP_TEXT      = "#000000" 
-XP_GREY_TXT  = "#444444" 
+XP_HIGHLIGHT = "#0A246A"
+XP_HITEXT    = "#FFFFFF"
+XP_TEXT      = "#000000"
+XP_GREY_TXT  = "#444444"
 XP_TITLEBAR  = "#0054E3"
 XP_BTN_TXT   = "#000000"
 CMD_BG       = "#000000"
-CMD_FG       = "#C0C0C0" 
-CMD_GREEN    = "#00FF00"  
-CMD_YELLOW   = "#FFFF00" 
-CMD_RED      = "#FF0000"  
-CMD_CYAN     = "#00FFFF"  
-CMD_DARKGREY = "#808080"   
+CMD_FG       = "#C0C0C0"
+CMD_GREEN    = "#00FF00"
+CMD_YELLOW   = "#FFFF00"
+CMD_RED      = "#FF0000"
+CMD_CYAN     = "#00FFFF"
+CMD_DARKGREY = "#808080"
 
 XP_FONT      = ("Tahoma", 8)
 XP_FONT_BOLD = ("Tahoma", 8, "bold")
@@ -6824,6 +6995,7 @@ class SettingsWindow:
         _max_stack_raw = int(self._cfg.get("yahoo_max_stack", YAHOO_MAX_STACK))
         self._max_stack_var = tk.IntVar(value=_max_stack_raw)
         self._max_stack_lbl = tk.StringVar(value=f"{_max_stack_raw} toasts")
+        self._compact_use_avatar_var = tk.BooleanVar(value=bool(self._cfg.get("compact_use_avatar", False)))
 
         self._tray_status_icons_var = tk.BooleanVar(value=bool(self._cfg.get("tray_status_icons_enabled", False)))
         _status_icons_cfg = self._cfg.get("status_icons", {})
@@ -6837,6 +7009,7 @@ class SettingsWindow:
         self._build()
         self._center(580, 500)
         self._notif_type_var.trace_add("write", self._refresh_style_tab)
+        self._notif_type_var.trace_add("write", self._refresh_per_user_tab)
 
     def _center(self, w: int, h: int) -> None:
         self.win.update_idletasks()
@@ -7078,6 +7251,34 @@ class SettingsWindow:
                  bg=XP_FACE, fg=XP_GREY_TXT, font=("Tahoma", 7),
                  justify=tk.LEFT, anchor=tk.W,
                  ).pack(fill=tk.X, padx=10, pady=(0, 6))
+
+        icon_grp = tk.LabelFrame(parent, text=" Notification Icon Source ",
+                                 bg=XP_FACE, fg=XP_TEXT, font=XP_FONT_BOLD,
+                                 bd=2, relief=tk.GROOVE)
+        icon_grp.pack(fill=tk.X, padx=4, pady=(0, 8))
+
+        if not hasattr(self, "_icon_source_var"):
+            self._icon_source_var = tk.StringVar(
+                value=load_config().get("icon_source", "author"))
+
+        for val, lbl, desc in [
+            ("author", "Author avatar (pfp)",
+             "Show the sender's profile picture as the notification icon."),
+            ("guild",  "Server icon (guild)",
+             "Show the server icon instead of the avatar.\nFalls back to the author pfp if the server has no icon or for DMs."),
+            ("none",   "No icon",
+             "Do not download or show any avatar/icon."),
+        ]:
+            tk.Radiobutton(icon_grp, text=lbl,
+                           variable=self._icon_source_var, value=val,
+                           bg=XP_FACE, fg=XP_TEXT, selectcolor=XP_WHITE,
+                           activebackground=XP_FACE, activeforeground=XP_TEXT,
+                           font=XP_FONT_BOLD, anchor=tk.W,
+                           ).pack(fill=tk.X, padx=10, pady=(6 if val == "author" else 2, 0))
+            tk.Label(icon_grp, text=desc,
+                     bg=XP_FACE, fg=XP_GREY_TXT, font=("Tahoma", 7),
+                     justify=tk.LEFT, anchor=tk.W,
+                     ).pack(fill=tk.X, padx=28, pady=(0, 2 if val != "none" else 6))
     def _build_style_page(self, parent: tk.Frame) -> None:
         _sc = tk.Frame(parent, bg=XP_FACE)
         _sc.pack(fill=tk.BOTH, expand=True)
@@ -7120,6 +7321,44 @@ class SettingsWindow:
     def _refresh_style_tab(self, *_):
         if hasattr(self, "_style_inner"):
             self._build_style_content(self._style_inner)
+
+    def _refresh_per_user_tab(self, *_):
+        """Rebuild per-user panels in-place when the notification type changes (yahoo ↔ popupplus)."""
+        if not hasattr(self, "_pu_inner"):
+            return
+
+        snapshots: list[tuple[str, str, dict]] = []
+        for entry in list(self._user_sound_entries):
+            uid   = entry["id_var"].get().strip()
+            label = entry["name_var"].get().strip()
+            sounds: dict = {}
+            for ev, _ in self._PU_EVENTS:
+                v = entry.get(f"{ev}_var")
+                if v:
+                    val = v.get().strip()
+                    if val:
+                        sounds[ev] = val
+            if label:
+                sounds["_label"] = label
+
+            for key in ("titlebar_left", "titlebar_mid", "titlebar_right",
+                        "close_btn", "body_border_color",
+                        "pu_pp_skin_folder", "pu_pp_bg", "pu_pp_fg",
+                        "pu_pp_body", "pu_pp_clock", "pu_pp_tint",
+                        "pu_pp_outline_color"):
+                v = entry.get(f"{key}_var")
+                if v:
+                    val = v.get().strip()
+                    if val:
+                        sounds[key] = val
+            snapshots.append((uid, label, sounds))
+
+        for entry in list(self._user_sound_entries):
+            entry["frame"].destroy()
+        self._user_sound_entries.clear()
+
+        for uid, label, sounds in snapshots:
+            self._pu_create_panel(uid, label, sounds)
 
     def _build_style_popupplus(self, parent: tk.Frame) -> None:
         cfg = self._cfg
@@ -7218,6 +7457,7 @@ class SettingsWindow:
             self._pp_force_clock_var  = tk.BooleanVar(value=bool(cfg.get("pp_force_clock", False)))
             self._pp_clock_bold_var   = tk.BooleanVar(value=bool(cfg.get("pp_clock_bold", False)))
             self._pp_font_aa_var      = tk.BooleanVar(value=bool(cfg.get("pp_font_aa", True)))
+            self._pp_icon_slot_var    = tk.StringVar(value=cfg.get("pp_icon_slot", "avatar_slot"))
 
         xp_checkbox(content_grp, "Show avatar (pfp)", self._pp_force_avatar_var
                     ).pack(anchor=tk.W, padx=10, pady=(6, 1))
@@ -7228,7 +7468,25 @@ class SettingsWindow:
         xp_checkbox(content_grp, "Bold clock", self._pp_clock_bold_var
                     ).pack(anchor=tk.W, padx=10, pady=1)
         xp_checkbox(content_grp, "Antialiased fonts", self._pp_font_aa_var
-                    ).pack(anchor=tk.W, padx=10, pady=(1, 6))
+                    ).pack(anchor=tk.W, padx=10, pady=(1, 4))
+
+        xp_label(content_grp, "Avatar/icon slot:", fg=XP_TEXT).pack(anchor=tk.W, padx=10, pady=(2, 0))
+        for val, lbl in [
+            ("avatar_slot", "Avatar slot  (large image — default)"),
+            ("icon",        "Icon slot  (small image, replaces type-icon)"),
+        ]:
+            tk.Radiobutton(content_grp, text=lbl,
+                           variable=self._pp_icon_slot_var, value=val,
+                           bg=XP_FACE, fg=XP_TEXT, selectcolor=XP_WHITE,
+                           activebackground=XP_FACE, activeforeground=XP_TEXT,
+                           font=XP_FONT, anchor=tk.W,
+                           ).pack(anchor=tk.W, padx=20, pady=(2, 0))
+        tk.Label(content_grp,
+                 text="\"Icon slot\" puts the avatar/guild icon in the small type-icon\n"
+                      "position instead of the large avatar area.",
+                 bg=XP_FACE, fg=XP_GREY_TXT, font=("Tahoma", 7),
+                 justify=tk.LEFT, anchor=tk.W,
+                 ).pack(fill=tk.X, padx=28, pady=(0, 6))
 
         font_grp = tk.LabelFrame(parent, text=" Font ",
                                  bg=XP_FACE, fg=XP_TEXT, font=XP_FONT_BOLD,
@@ -7411,8 +7669,11 @@ class SettingsWindow:
 
         if not hasattr(self, "_pp_avatar_aa_var"):
             self._pp_avatar_aa_var = tk.BooleanVar(value=bool(cfg.get("pp_avatar_aa", True)))
+            self._pp_avatar_outline_aa_var = tk.BooleanVar(value=bool(cfg.get("pp_avatar_outline_aa", True)))
         xp_checkbox(av_grp, "Antialiased corners (smooth edges)",
-                    self._pp_avatar_aa_var).pack(anchor=tk.W, padx=10, pady=(0, 4))
+                    self._pp_avatar_aa_var).pack(anchor=tk.W, padx=10, pady=(0, 2))
+        xp_checkbox(av_grp, "Antialiased outline (smooth outline edge)",
+                    self._pp_avatar_outline_aa_var).pack(anchor=tk.W, padx=10, pady=(0, 4))
 
         if not hasattr(self, "_pp_avatar_outline_var"):
             self._pp_avatar_outline_var = tk.IntVar(value=int(cfg.get("pp_avatar_outline_width", 1)))
@@ -7706,6 +7967,15 @@ class SettingsWindow:
             xp_button(ci_row, "\u2026",
                       lambda v=var: self._browse_compact_icon(v),
                       width=2).pack(side=tk.LEFT)
+
+        tk.Checkbutton(
+            compact_icons_grp,
+            text="Use avatar / guild icon instead of type icon (Compact mode)",
+            variable=self._compact_use_avatar_var,
+            bg=XP_FACE, fg=XP_TEXT, selectcolor=XP_WHITE,
+            activebackground=XP_FACE, activeforeground=XP_TEXT,
+            font=XP_FONT,
+        ).pack(anchor=tk.W, padx=10, pady=(4, 6))
 
         stack_grp = tk.LabelFrame(parent, text=" Max Notification Stack ",
                                   bg=XP_FACE, fg=XP_TEXT, font=XP_FONT_BOLD,
@@ -8456,6 +8726,27 @@ class SettingsWindow:
             print(f"[tray] Preview status icon for '{status_key}': {os.path.basename(path)}")
 
     def _build_more_page(self, parent: tk.Frame) -> None:
+        _sc = tk.Frame(parent, bg=XP_FACE)
+        _sc.pack(fill=tk.BOTH, expand=True)
+        _canvas = tk.Canvas(_sc, bg=XP_FACE, highlightthickness=0)
+        _sb = tk.Scrollbar(_sc, orient=tk.VERTICAL, command=_canvas.yview,
+                           bg=XP_FACE, troughcolor=XP_FACE_DARK, relief=tk.FLAT)
+        _canvas.configure(yscrollcommand=_sb.set)
+        _sb.pack(side=tk.RIGHT, fill=tk.Y)
+        _canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        _inner = tk.Frame(_canvas, bg=XP_FACE)
+        _win_id = _canvas.create_window((0, 0), window=_inner, anchor=tk.NW)
+        _inner.bind("<Configure>", lambda e: (_canvas.configure(scrollregion=_canvas.bbox("all")),
+                                               _canvas.itemconfig(_win_id, width=_canvas.winfo_width())))
+        _canvas.bind("<Configure>", lambda e: _canvas.itemconfig(_win_id, width=e.width))
+        def _more_mousewheel(event):
+            try:
+                _canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            except tk.TclError:
+                pass
+        _canvas.bind_all("<MouseWheel>", _more_mousewheel)
+        _canvas.bind("<Destroy>", lambda e: _canvas.unbind_all("<MouseWheel>"))
+        parent = _inner
 
         exit_grp = tk.LabelFrame(parent, text=_t("grp_exit_settings"),
                                  bg=XP_FACE, fg=XP_TEXT, font=XP_FONT_BOLD,
@@ -8491,7 +8782,6 @@ class SettingsWindow:
                  justify=tk.LEFT, anchor=tk.W,
                  ).pack(fill=tk.X, padx=28, pady=(0, 6))
 
-
         update_grp = tk.LabelFrame(parent, text=_t("grp_update"),
                                    bg=XP_FACE, fg=XP_TEXT, font=XP_FONT_BOLD,
                                    bd=2, relief=tk.GROOVE)
@@ -8511,6 +8801,83 @@ class SettingsWindow:
                  justify=tk.LEFT, anchor=tk.W,
                  ).pack(fill=tk.X, padx=28, pady=(0, 6))
 
+        check_row = tk.Frame(update_grp, bg=XP_FACE)
+        check_row.pack(fill=tk.X, padx=10, pady=(0, 8))
+
+        self._update_status_var = tk.StringVar(value="")
+        self._update_status_lbl = tk.Label(
+            check_row, textvariable=self._update_status_var,
+            bg=XP_FACE, fg=XP_GREY_TXT, font=("Tahoma", 8),
+            anchor=tk.W, justify=tk.LEFT,
+        )
+        self._update_status_lbl.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        self._update_dl_btn: "tk.Button | None" = None
+
+        def _do_check():
+            self._update_status_var.set("Checking…")
+            self._update_status_lbl.config(fg=XP_GREY_TXT)
+            if self._update_dl_btn:
+                self._update_dl_btn.destroy()
+                self._update_dl_btn = None
+            self.win.update_idletasks()
+
+            def _fetch():
+                try:
+                    import urllib.request as _ur, json as _json
+                    req = _ur.Request(
+                        "https://api.github.com/repos/MozaicoTheHuman/Ballooncord/releases/latest",
+                        headers={"User-Agent": f"Ballooncord/{VERSION}"},
+                    )
+                    with _ur.urlopen(req, timeout=8) as r:
+                        data = _json.loads(r.read().decode())
+                    tag     = data.get("tag_name", "").lstrip("v")
+                    dl_url  = ""
+                    for asset in data.get("assets", []):
+                        name = asset.get("name", "").lower()
+                        if name.endswith(".exe") and "updater" not in name:
+                            dl_url = asset.get("browser_download_url", "")
+                            break
+                    if not dl_url:
+                        dl_url = data.get("html_url", "")
+                    return tag, dl_url, None
+                except Exception as _e:
+                    return None, None, str(_e)
+
+            def _apply(tag, dl_url, err):
+                if err:
+                    self._update_status_var.set(f"Error: {err}")
+                    self._update_status_lbl.config(fg="#CC0000")
+                    return
+
+                def _ver_tuple(v):
+                    try:
+                        return tuple(int(x) for x in v.split("."))
+                    except Exception:
+                        return (0,)
+
+                if _ver_tuple(tag) > _ver_tuple(VERSION):
+                    self._update_status_var.set(f"New update available!  v{tag}")
+                    self._update_status_lbl.config(fg="#006600")
+                    self._update_dl_btn = xp_button(
+                        check_row,
+                        "Download",
+                        lambda: _launch_updater_download(tag, dl_url),
+                        width=10,
+                    )
+                    self._update_dl_btn.pack(side=tk.RIGHT, padx=(6, 0))
+                else:
+                    self._update_status_var.set("No updates available.")
+                    self._update_status_lbl.config(fg=XP_GREY_TXT)
+
+            def _thread():
+                tag, dl_url, err = _fetch()
+                if self.alive:
+                    self.win.after(0, lambda: _apply(tag, dl_url, err))
+
+            threading.Thread(target=_thread, daemon=True).start()
+
+        xp_button(check_row, "Check for Updates", _do_check, width=16).pack(side=tk.RIGHT, padx=(6, 0))
 
         about_grp = tk.LabelFrame(parent, text=" About ",
                                   bg=XP_FACE, fg=XP_TEXT, font=XP_FONT_BOLD,
@@ -8538,6 +8905,7 @@ class SettingsWindow:
         cfg["notification_mode"] = self._notif_var.get()
         cfg["notif_style"]       = self._style_var.get()
         cfg["replace_cooldown"]  = float(self._cooldown_var.get())
+        cfg["icon_source"]       = getattr(self, "_icon_source_var", tk.StringVar(value="author")).get()
         cfg["sound_volume"]      = round(self._vol_var.get() / 100.0, 2)
         cfg["custom_sounds"]     = {ek: v.get().strip()
                                     for ek, v in self._sound_vars.items()
@@ -8554,7 +8922,6 @@ class SettingsWindow:
                     cfg[key] = val
                 else:
                     cfg.pop(key, None)
-
 
         _chroma = getattr(self, "_chroma_var", None)
         cfg["toast_chroma_key"] = _chroma.get().strip() if _chroma else "#FF00FF"
@@ -8621,6 +8988,8 @@ class SettingsWindow:
             cfg["pp_avatar_radius"] = int(self._pp_avatar_radius_var.get())
         if hasattr(self, "_pp_avatar_aa_var"):
             cfg["pp_avatar_aa"] = bool(self._pp_avatar_aa_var.get())
+        if hasattr(self, "_pp_avatar_outline_aa_var"):
+            cfg["pp_avatar_outline_aa"] = bool(self._pp_avatar_outline_aa_var.get())
         if hasattr(self, "_pp_avatar_outline_var"):
             cfg["pp_avatar_outline_width"] = int(self._pp_avatar_outline_var.get())
         if hasattr(self, "_pp_avatar_outline_color_var"):
@@ -8631,6 +9000,8 @@ class SettingsWindow:
             cfg["pp_font_size"] = int(self._pp_font_size_var.get())
         if hasattr(self, "_pp_force_avatar_var"):
             cfg["pp_force_avatar"] = bool(self._pp_force_avatar_var.get())
+        if hasattr(self, "_pp_icon_slot_var"):
+            cfg["pp_icon_slot"] = self._pp_icon_slot_var.get()
         if hasattr(self, "_pp_force_icon_var"):
             cfg["pp_force_icon"] = bool(self._pp_force_icon_var.get())
         if hasattr(self, "_pp_force_clock_var"):
@@ -8671,6 +9042,7 @@ class SettingsWindow:
         cfg["suppress_connect_notif"] = bool(self._suppress_connect_var.get())
         cfg["toast_display_mode"] = self._toast_display_mode_var.get()
         cfg["compact_icons"] = {k: v.get().strip() for k, v in self._compact_icon_vars.items() if v.get().strip()}
+        cfg["compact_use_avatar"] = bool(self._compact_use_avatar_var.get())
         cfg["yahoo_max_stack"] = int(self._max_stack_var.get())
         cfg["tray_status_icons_enabled"] = bool(self._tray_status_icons_var.get())
         cfg["status_icons"] = {k: v.get().strip() for k, v in self._status_icon_vars.items() if v.get().strip()}
@@ -8683,9 +9055,9 @@ class SettingsWindow:
         else:
             cfg.pop("exit_close_client", None)
         save_config(cfg)
-        _clear_sound_cache()  
-        _clear_state_icon_cache()    
-        _update_tray_icon_for_state() 
+        _clear_sound_cache()
+        _clear_state_icon_cache()
+        _update_tray_icon_for_state()
         print(f"[settings] Saved. mode={cfg['notification_mode']}, "
 
               f"per_user_sounds={len(cfg.get('per_user_sounds', {}))}")
@@ -8795,7 +9167,7 @@ class LoginWindow:
         lang_row.pack(fill=tk.X, pady=(0, 6))
         xp_label(lang_row, _t("lbl_language")).pack(side=tk.LEFT)
 
-        _langs          = _available_languages()      
+        _langs          = _available_languages()
         _lang_codes     = [c for c, _ in _langs]
         _lang_labels    = [l for _, l in _langs]
         _cur_code       = cfg.get("language", "en")
@@ -8923,7 +9295,7 @@ class LoginWindow:
             font=XP_FONT,
         ).pack(fill=tk.X, ipady=3, padx=1, pady=1)
         xp_button(path_row, _t("btn_browse"), self._browse_dm_exe, width=8).pack(side=tk.LEFT, padx=(4, 0))
-        self._on_client_change() 
+        self._on_client_change()
 
         self.status_var = tk.StringVar()
         tk.Label(body, textvariable=self.status_var,
@@ -9083,7 +9455,7 @@ def _launch_updater() -> None:
 def _poll_update_flag() -> None:
 
     import time
-    time.sleep(6)                                                     
+    time.sleep(6)
 
     flag_path = os.path.join(_get_base_dir(), "_Ballooncord_update.json")
     try:
@@ -9091,7 +9463,7 @@ def _poll_update_flag() -> None:
             info = json.load(f)
         os.remove(flag_path)
     except FileNotFoundError:
-        return                      
+        return
     except Exception as e:
         print(f"[updater] Could not read flag file: {e}")
         return
@@ -9103,7 +9475,7 @@ def _poll_update_flag() -> None:
     download_url = info.get("download_url", "")
 
     if ready:
-
+        _pending_restart_info = {"version": ver}
         _raw_show_balloon(
             "Ballooncord \u2014 Update ready",
             f"v{ver} downloaded. Restart Ballooncord to apply.",
@@ -9116,7 +9488,7 @@ def _poll_update_flag() -> None:
         _raw_show_balloon(
             "Ballooncord \u2014 Update available",
             f"A new version (v{ver}) is available. Click to download now.",
-            None,                                                              
+            None,
         )
         print(f"[updater] Showed 'update available' balloon for v{ver}")
 
@@ -9137,9 +9509,9 @@ def _ensure_version_file() -> None:
 
 def main() -> None:
     global _tk_root, _log_win
-    _ensure_version_file()                                                         
+    _ensure_version_file()
     _register_sound_event()
-    _launch_updater()                                           
+    _launch_updater()
     root = tk.Tk()
     root.withdraw()
     _tk_root = root
@@ -9147,7 +9519,6 @@ def main() -> None:
     tray_thread = threading.Thread(target=_message_loop, daemon=True)
     tray_thread.start()
     _tray_ready.wait()
-
 
     threading.Thread(target=_poll_update_flag, daemon=True).start()
 
